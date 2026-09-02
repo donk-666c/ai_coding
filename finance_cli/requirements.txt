@@ -1,0 +1,5 @@
+# 记账应用依赖; 不锁版本, 安装时自动取最新版
+# 安装命令(清华镜像, 国内快):
+#   .venv/Scripts/python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+streamlit>=1.30
+pandas>=2.0
