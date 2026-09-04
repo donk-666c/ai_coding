@@ -22,11 +22,11 @@ trigger: ["提交代码", "git commit", "生成commit"]
 3. 生成 commit message，格式：
    ```
    <type>(<scope>): <description>
-
+   
    <body>
    ```
 
-4. 显示给用户确认后执行 `git commit`
+4. 显示让用户确认，确认后再执行 `git commit`
 
 ## 示例
 修改了 src/components/BookmarkCard.tsx 中的样式
