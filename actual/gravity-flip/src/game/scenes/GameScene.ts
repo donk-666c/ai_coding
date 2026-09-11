@@ -1,15 +1,18 @@
 import Phaser from 'phaser';
 import {
   COLORS,
+  FEEL,
   LEVEL_COLS,
   LEVEL_OFFSET_X,
   LEVEL_OFFSET_Y,
   LEVEL_ROWS,
+  PHYS,
   TILE,
 } from '../config';
 import { LEVELS } from '../level/levels';
 import { parseLevel, toWorld, type ParsedLevel } from '../level/parser';
-import { Player } from '../objects/Player';
+import { Player, type GravitySign } from '../objects/Player';
+import { sfx } from '../audio';
 
 /** 关卡清晰事件携带的数据，DOM 层用它累计总成绩 */
 export interface LevelClearPayload {
@@ -35,6 +38,11 @@ export class GameScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   /** 本关是否已判定通关。用途见 onReachGoal 的注释 */
   private cleared = false;
+
+  /** 落地尘土与翻转火花 */
+  private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** 死亡碎片 */
+  private shards!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super('Game');
@@ -70,8 +78,35 @@ export class GameScene extends Phaser.Scene {
     const spawn = toWorld(parsed.spawn);
     this.spawnPoint.set(spawn.x + LEVEL_OFFSET_X, spawn.y + LEVEL_OFFSET_Y);
 
-    this.player = new Player(this, this.spawnPoint.x, this.spawnPoint.y);
+    // 两个常驻 emitter，用 explode() 定点爆发。
+    // 每次效果都新建一个 emitter 会在每秒都在落地的游戏里堆出大量短命对象
+    this.dust = this.add.particles(0, 0, 'dust', {
+      lifespan: { min: 200, max: 420 },
+      speed: { min: 40, max: 130 },
+      scale: { start: 1, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      tint: COLORS.SOLID_EDGE,
+      emitting: false,
+    });
+    this.dust.setDepth(4);
+
+    this.shards = this.add.particles(0, 0, 'dust', {
+      lifespan: { min: 320, max: 700 },
+      speed: { min: 70, max: 230 },
+      scale: { start: 1.4, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [COLORS.PLAYER, COLORS.SPIKE, 0xffffff],
+      emitting: false,
+    });
+    this.shards.setDepth(10);
+
+    this.player = new Player(this, this.spawnPoint.x, this.spawnPoint.y, {
+      onJump: () => sfx.jump(),
+      onFlip: (sign) => this.onFlip(sign),
+      onLand: (impact) => this.onLand(impact),
+    });
     this.player.sprite.setCollideWorldBounds(true);
+    this.player.sprite.setDepth(5);
 
     this.physics.add.collider(this.player.sprite, solids);
     this.physics.add.overlap(this.player.sprite, spikes, () => this.onDeath());
@@ -82,6 +117,8 @@ export class GameScene extends Phaser.Scene {
       fontSize: '20px',
       color: '#8b8bb0',
     });
+    // 压在所有粒子之上：计时是玩家要读的，不能被死亡碎片盖住
+    this.hud.setDepth(100);
     this.updateHud();
   }
 
@@ -151,10 +188,53 @@ export class GameScene extends Phaser.Scene {
     return { solids, spikes, goals };
   }
 
+  /**
+   * 翻转的反馈。
+   *
+   * `setFlipY` 只是把贴图上下颠倒，在快节奏操作里很容易被忽略——
+   * 补一瞬闪白和一圈火花，玩家才能立刻确认「这一下按上了」，
+   * 这在第 4 关那种连续空中翻转的场面里是刚需。
+   */
+  private onFlip(sign: GravitySign): void {
+    sfx.flip();
+
+    const sprite = this.player.sprite;
+    sprite.setTintFill(0xffffff);
+    // 只闪一瞬。时间事件随场景 shutdown 一起清掉，不会回调到已销毁的精灵
+    this.time.delayedCall(60, () => sprite.clearTint());
+
+    this.dust.gravityY = sign * FEEL.DUST_GRAVITY;
+    this.dust.explode(FEEL.FLIP_SPARKS, sprite.x, sprite.y);
+  }
+
+  /** 落地反馈：尘土量跟着撞击力度走，只有重摔才震屏 */
+  private onLand(impact: number): void {
+    const strength = Phaser.Math.Clamp(impact / PHYS.MAX_FALL_SPEED, 0, 1);
+    const count = Math.round(FEEL.DUST_MIN + strength * (FEEL.DUST_MAX - FEEL.DUST_MIN));
+
+    const sprite = this.player.sprite;
+    // 尘土从脚下扬起——翻转后「脚下」是头顶，所以偏移量跟着重力符号走
+    this.dust.gravityY = this.player.gravitySign * FEEL.DUST_GRAVITY;
+    this.dust.explode(
+      count,
+      sprite.x,
+      sprite.y + this.player.gravitySign * (TILE / 2),
+    );
+
+    if (strength >= FEEL.LAND_SHAKE_RATIO) this.cameras.main.shake(70, 0.003);
+  }
+
   private onDeath(): void {
     this.deaths++;
+
+    // 先爆散再传送：碎片必须从「死掉的位置」喷出来，而不是从出生点
+    const sprite = this.player.sprite;
+    this.shards.gravityY = this.player.gravitySign * FEEL.DUST_GRAVITY;
+    this.shards.explode(FEEL.DEATH_SHARDS, sprite.x, sprite.y);
+    this.cameras.main.shake(140, FEEL.DEATH_SHAKE);
+    sfx.death();
+
     this.player.respawn(this.spawnPoint.x, this.spawnPoint.y);
-    this.cameras.main.shake(120, 0.006);
     this.updateHud();
     this.game.events.emit('level:death', this.deaths);
   }
@@ -170,6 +250,7 @@ export class GameScene extends Phaser.Scene {
   private onReachGoal(): void {
     if (this.cleared) return;
     this.cleared = true;
+    sfx.clear();
 
     const elapsed = this.time.now - this.startedAt;
     const payload: LevelClearPayload = {

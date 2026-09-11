@@ -5,6 +5,23 @@ import { PHYS } from '../config';
 export type GravitySign = 1 | -1;
 
 /**
+ * 表现层钩子。
+ *
+ * 用回调而不是 `scene.events.emit`：场景每次 restart 复用的是同一个 Scene 实例，
+ * 挂在 `events` 上的监听器不会随 shutdown 清理，切几关之后一次跳跃会触发一串
+ * 早已作废的回调（音效叠着响、粒子喷在上一关的坐标上）。
+ * 回调随 GameScene 的闭包一起重建，天然没有这个问题。
+ */
+export interface PlayerHooks {
+  /** 起跳成功 */
+  onJump?: () => void;
+  /** 翻转重力，参数是翻转后的方向 */
+  onFlip?: (sign: GravitySign) => void;
+  /** 落地，参数是撞地瞬间的下落速度绝对值 */
+  onLand?: (impact: number) => void;
+}
+
+/**
  * 玩家角色与手感层。
  *
  * 这是整个项目最需要反复调的文件。精确平台跳跃「操作舒服」的感觉不来自
@@ -22,7 +39,7 @@ export class Player {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
 
   private readonly body: Phaser.Physics.Arcade.Body;
-  private readonly scene: Phaser.Scene;
+  private readonly hooks: PlayerHooks;
 
   private readonly keys: {
     left: readonly Phaser.Input.Keyboard.Key[];
@@ -48,8 +65,13 @@ export class Player {
   /** 起跳时的重力方向，用来判断跳跃是否仍在朝原方向进行 */
   private jumpSign: GravitySign = 1;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    this.scene = scene;
+  /** 上一帧是否站在支撑面上，用来识别「刚落地」那一帧 */
+  private wasGrounded = true;
+  /** 上一帧末尾的垂直速度绝对值，落地时用它衡量撞击力度 */
+  private landingSpeed = 0;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, hooks: PlayerHooks = {}) {
+    this.hooks = hooks;
 
     const keyboard = scene.input.keyboard;
     if (!keyboard) throw new Error('键盘输入不可用：scene.input.keyboard 为空');
@@ -101,6 +123,11 @@ export class Player {
 
     const grounded = this.isGrounded();
 
+    // 落地那一帧，物理步进已经把撞地速度清零了，只能靠上一帧末尾记下的值。
+    // 必须放在 updateJump 之前取——那里会改速度
+    if (grounded && !this.wasGrounded) this.hooks.onLand?.(this.landingSpeed);
+    this.wasGrounded = grounded;
+
     if (grounded) {
       this.coyoteTimer = PHYS.COYOTE_TIME;
     } else if (this.coyoteTimer > 0) {
@@ -115,6 +142,9 @@ export class Player {
 
     this.updateHorizontal(moveDir, grounded, dt);
     this.updateJump(jumpHeld, grounded);
+
+    // 记在最后：下一帧若判定为落地，这里就是撞地瞬间的速度
+    this.landingSpeed = Math.abs(this.body.velocity.y);
   }
 
   /** 回到出生点。重力方向与全部计时器都要重置，否则会把上一轮的状态带进来 */
@@ -127,6 +157,9 @@ export class Player {
     this.jumpBufferTimer = 0;
     this.flipCooldownTimer = 0;
     this.jumpCutPending = false;
+    // 传送不算落地：不重置的话，出生点在地面上的关卡每次复活都会扬一圈土
+    this.wasGrounded = true;
+    this.landingSpeed = 0;
   }
 
   private flipGravity(): void {
@@ -140,7 +173,7 @@ export class Player {
     this.jumpCutPending = false;
     // 速度刻意保留：翻转后先沿原方向滑一段，再被新重力拉走。
     // 这段迟滞感是 VVVVVV 手感的关键，把速度清零会让翻转显得生硬。
-    this.scene.events.emit('player:flip', this.sign);
+    this.hooks.onFlip?.(this.sign);
   }
 
   /**
@@ -190,7 +223,7 @@ export class Player {
       this.coyoteTimer = 0;
       this.jumpCutPending = true;
       this.jumpSign = this.sign;
-      this.scene.events.emit('player:jump');
+      this.hooks.onJump?.();
       return;
     }
 

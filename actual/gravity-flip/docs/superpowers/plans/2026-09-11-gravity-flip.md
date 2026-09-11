@@ -38,8 +38,9 @@
 | `src/game/scenes/GameScene.ts` | 关卡构建、碰撞、死亡与通关 | ✅ T4 |
 | `src/main.ts` | Phaser.Game 启动配置 + 覆盖层接线 | ✅ T4 |
 | `src/ui/overlay.ts` | DOM 覆盖层控制器 | ✅ T5 |
-| `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ⬜ T6 |
-| `public/assets/` | 素材（用户提供的两张图放这里） | ⬜ T8 |
+| `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ✅ T6 |
+| `src/game/audio.ts` | Web Audio 合成音效（无音频素材） | ✅ T7 |
+| `public/assets/` | 素材（壁纸与收款码已放入，Kenney 素材待接） | ✅ 部分 |
 | `src-tauri/` | Tauri 壳 | ⬜ T9 |
 
 ---
@@ -205,7 +206,7 @@ npm run dev
 - [x] **步骤 4：** 素材缺失时渲染 `.placeholder` 提示而非破图；壁纸缺失时「保存壁纸」按钮直接置灰，而不是让玩家点了才发现失败
 - [x] **步骤 5（补）：** 新建 `public/assets/` 并附 README，写明两个文件的规格要求（收款码必须用原图，判定标准是真拿手机扫一次）
 - [ ] **步骤 6（推迟到 T9）：** Tauri 原生保存对话框（`plugin-dialog` + `plugin-fs`）。这条路径必须在 Tauri 环境里才验证得了，现在写等于盲写；`SaveOutcome` 已预留 `'cancelled'`，届时补上分支即可
-- [ ] **步骤 7（待素材）：** 放入 `public/assets/wallpaper.png` 与 `public/assets/sponsor-qr.png`
+- [x] **步骤 7（补）：** 放入 `public/assets/wallpaper.png` 与 `public/assets/sponsor-qr.png`。图片已随 T5/T6 提交；**收款码仍需拿手机真扫一次才算验收通过**
 
 **验收：** 用真实收款码图片，**手机实际扫码能扫出来**（必须真扫，这是像素化问题的唯一验证方式）
 
@@ -215,10 +216,11 @@ npm run dev
 
 **文件：** 修改 `src/game/scenes/GameScene.ts`、`src/game/objects/Player.ts`
 
-- [ ] **步骤 1：** 落地尘土粒子（落地速度越快越明显）
-- [ ] **步骤 2：** 死亡像素爆散粒子 + 摄像机短促震动
-- [ ] **步骤 3：** 翻转时的视觉反馈（`setFlipY` 已有，补充速度线或颜色闪烁）
-- [ ] **步骤 4：** 音效——跳跃、翻转、死亡、通关。可用 Web Audio 实时合成（零素材体积）
+- [x] **步骤 1：** 落地尘土粒子，粒子数随撞地速度线性增长；撞地速度超过 `MAX_FALL_SPEED` 的 75% 才震屏——每次落地都震会让人烦
+- [x] **步骤 2：** 死亡像素爆散粒子（26 片，三色随机）+ 摄像机震动。粒子必须在 `respawn()` **之前**喷，否则碎片会从出生点冒出来
+- [x] **步骤 3：** 翻转反馈——`setFlipY` 之外补 60ms 闪白与一圈火花
+- [x] **步骤 4：** 音效改用 Web Audio 实时合成（`src/game/audio.ts`），零素材体积
+- [x] **步骤 5（补）：** `Player` 的 `scene.events.emit` 改为构造时注入回调。`Scene` 实例在 restart 时被复用，而 `events` 上的监听器不随 shutdown 清理——切几关之后一次跳跃会触发一串作废的回调
 
 **验收：** 手感反馈明显但不干扰操作判断
 

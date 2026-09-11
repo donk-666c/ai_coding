@@ -51,6 +51,13 @@ export class BootScene extends Phaser.Scene {
     g.fillStyle(COLORS.GOAL, 1);
     g.fillRect(0, 3, TILE, TILE - 6);
     g.generateTexture('goal', TILE, TILE);
+    g.clear();
+
+    // 粒子：一个 4px 白方块。落地尘土、死亡碎片、翻转火花共用这一张，
+    // 靠 emitter 的 tint 上色——多画几张不同颜色的纹理只是白占显存
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(0, 0, 4, 4);
+    g.generateTexture('dust', 4, 4);
 
     g.destroy();
   }
