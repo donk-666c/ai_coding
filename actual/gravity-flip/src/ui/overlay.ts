@@ -3,8 +3,8 @@ import { LEVELS } from '../game/level/levels';
 import type { LevelClearPayload } from '../game/scenes/GameScene';
 import { saveWallpaper } from './save-wallpaper';
 
-const WALLPAPER_URL = './assets/wallpaper.png';
-const WALLPAPER_FILENAME = '翻转引力-通关壁纸.png';
+const WALLPAPER_URL = './assets/wallpaper.jpg';
+const WALLPAPER_FILENAME = '翻转引力-通关壁纸.jpg';
 
 /**
  * DOM 覆盖层：所有出现中文的界面都在这里。
@@ -235,10 +235,10 @@ export class Overlay {
     const slot = this.root.querySelector('#qr-slot');
     if (!slot) return;
     mountImage(slot, {
-      src: './assets/sponsor-qr.png',
+      src: './assets/sponsor-qr.jpg',
       alt: '微信收款码',
       frameClass: 'qr-frame',
-      placeholder: '收款码还没放进来<br /><code>public/assets/sponsor-qr.png</code>',
+      placeholder: '收款码还没放进来<br /><code>public/assets/sponsor-qr.jpg</code>',
     });
   }
 
@@ -284,7 +284,7 @@ export class Overlay {
       src: WALLPAPER_URL,
       alt: '通关壁纸',
       imgClass: 'wallpaper',
-      placeholder: '壁纸还没放进来<br /><code>public/assets/wallpaper.png</code>',
+      placeholder: '壁纸还没放进来<br /><code>public/assets/wallpaper.jpg</code>',
     });
 
     // 图都没有就没有可存的东西，直接把按钮灰掉，而不是让玩家点了才发现保存失败
