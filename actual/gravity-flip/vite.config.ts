@@ -10,6 +10,11 @@ export default defineConfig({
   server: {
     port: 8080,
     strictPort: true,
+    watch: {
+      // src-tauri 里是 Rust 的编译产物：几 GB、几十万个文件。
+      // Vite 的文件监视器盯着它，HMR 会被拖到几乎不可用
+      ignored: ['**/src-tauri/**'],
+    },
   },
 
   build: {

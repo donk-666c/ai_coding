@@ -1,3 +1,4 @@
+import { isTauri } from '@tauri-apps/api/core';
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from './game/config';
 import { BootScene } from './game/scenes/BootScene';
@@ -36,3 +37,26 @@ const game = new Phaser.Game({
 // DOM 覆盖层接管全部中文界面，也接管「什么时候开始游戏」。
 // 它一构造就显示主菜单，此时 Phaser 那边还停在 BootScene 生成纹理的阶段。
 new Overlay(game);
+
+/**
+ * 屏蔽浏览器自带的交互，只在桌面端生效。
+ *
+ * 这几样在浏览器里都是正常功能，装进游戏窗口就全是干扰：右键弹出的
+ * 「重新加载 / 另存为 / 检查」直接盖住画面，F5 会连游戏进度一起清掉，
+ * 拖拽会把画面里的图拖出去变成一张跟着鼠标飘的缩略图。
+ *
+ * 之所以按环境区分，是因为开发全程跑在浏览器里——那里右键菜单和刷新
+ * 是查问题的主要手段，一并禁掉等于自断手脚。
+ */
+if (isTauri()) {
+  window.addEventListener('contextmenu', (event) => event.preventDefault());
+  window.addEventListener('dragstart', (event) => event.preventDefault());
+
+  window.addEventListener('keydown', (event) => {
+    const key = event.key.toLowerCase();
+    // Ctrl+Shift+R 的 key 是大写 R，所以统一转小写再比
+    if (key === 'f5' || ((event.ctrlKey || event.metaKey) && key === 'r')) {
+      event.preventDefault();
+    }
+  });
+}

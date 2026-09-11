@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "默认权限，外加保存壁纸所需的原生保存对话框。写文件在 Rust 侧自己做，所以不需要 fs 插件的任何权限",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-save"
+  ]
+}

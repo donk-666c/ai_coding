@@ -38,10 +38,10 @@
 | `src/game/scenes/GameScene.ts` | 关卡构建、碰撞、死亡与通关 | ✅ T4 |
 | `src/main.ts` | Phaser.Game 启动配置 + 覆盖层接线 | ✅ T4 |
 | `src/ui/overlay.ts` | DOM 覆盖层控制器 | ✅ T5 |
-| `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ✅ T6 |
+| `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ✅ T6、T10 |
 | `src/game/audio.ts` | Web Audio 合成音效（无音频素材） | ✅ T7 |
-| `public/assets/` | 素材（壁纸与收款码已放入，Kenney 素材待接） | ✅ 部分 |
-| `src-tauri/` | Tauri 壳 | ⬜ T10 |
+| `public/assets/` | 素材（壁纸、收款码、Kenney 地块与角色表、CC0 许可证） | ✅ T5、T8 |
+| `src-tauri/` | Tauri 壳 | ✅ T10 |
 
 ---
 
@@ -205,7 +205,7 @@ npm run dev
 - [x] **步骤 3：** 赞助页——收款码原尺寸展示，不加缩放变换；主菜单与通关页都有入口，从通关页进来时返回键退回通关页而不是主菜单
 - [x] **步骤 4：** 素材缺失时渲染 `.placeholder` 提示而非破图；壁纸缺失时「保存壁纸」按钮直接置灰，而不是让玩家点了才发现失败
 - [x] **步骤 5（补）：** 新建 `public/assets/` 并附 README，写明两个文件的规格要求（收款码必须用原图，判定标准是真拿手机扫一次）
-- [ ] **步骤 6（推迟到 T10）：** Tauri 原生保存对话框（`plugin-dialog` + `plugin-fs`）。这条路径必须在 Tauri 环境里才验证得了，现在写等于盲写；`SaveOutcome` 已预留 `'cancelled'`，届时补上分支即可
+- [x] **步骤 6（在 T10 补完）：** Tauri 原生保存对话框。这条路径必须在 Tauri 环境里才验证得了，当时写等于盲写；`SaveOutcome` 预留的 `'cancelled'` 已在 T10 接上。**实际实现与原计划不同**，见任务 10 步骤 6
 - [x] **步骤 7（补）：** 放入 `public/assets/wallpaper.png` 与 `public/assets/sponsor-qr.png`。图片已随 T5/T6 提交；**收款码仍需拿手机真扫一次才算验收通过**
 
 **验收：** 用真实收款码图片，**手机实际扫码能扫出来**（必须真扫，这是像素化问题的唯一验证方式）
@@ -262,14 +262,14 @@ npm run dev
 
 **文件：** 创建 `src-tauri/`
 
-- [ ] **步骤 1：** `npm create tauri-app` 或手动添加 `src-tauri/`
-- [ ] **步骤 2：** `tauri.conf.json` 的 `frontendDist` 指向 `../dist`，窗口标题设「翻转引力」
-- [ ] **步骤 3：** 窗口配置：固定逻辑尺寸、禁止右键菜单、`resizable` 按需
-- [ ] **步骤 4：** `webviewInstallMode` 先用默认 `downloadBootstrapper`（包约 5MB，首次运行需联网装 WebView2）；若分发对象环境不确定，改 `offlineInstaller`（约 130MB，完全离线）
-- [ ] **步骤 5：** `npm run tauri build` 产出 exe
-- [ ] **步骤 6：** 补上 T6 推迟过来的 Tauri 原生保存对话框（`plugin-dialog` + `plugin-fs`），`SaveOutcome` 预留的 `'cancelled'` 分支在这里接上
+- [x] **步骤 1：** 用 `npx tauri init` 生成骨架。比手写靠谱：Cargo 依赖版本、权限文件结构、图标一套都是当前格式
+- [x] **步骤 2：** `tauri.conf.json` 的 `frontendDist` 指向 `../dist`，窗口标题「翻转引力」，`productName` 也用中文（安装包名正常，没有编码问题）
+- [x] **步骤 3：** 窗口 960×540（与画布逻辑尺寸 1:1，不缩放），最小 640×360，`resizable: true`、`center: true`。右键菜单、F5 刷新、图片拖拽在桌面端屏蔽——放在 `main.ts` 里按 `isTauri()` 区分，浏览器开发时全部保留
+- [x] **步骤 4：** 沿用默认 `downloadBootstrapper`。**但这条对裸 exe 无效**：bootstrapper 是 NSIS 安装包才有的逻辑，裸 exe 只能直接依赖系统已有的 WebView2
+- [x] **步骤 5：** `npm run tauri build` 产出裸 exe 9.3MB、NSIS 安装包 2.6MB，均远低于 290MB 上限。release 编译约 1.5 分钟
+- [x] **步骤 6：** 补上 T6 推迟过来的原生保存对话框。**实现与原计划不同**：用 `plugin-dialog` 选路径，写文件改由 Rust 自定义命令 `save_wallpaper` 完成，没有引入 `plugin-fs`。原因是保存对话框允许玩家选到任意目录，而 fs 插件的可写范围是预先声明的 scope——两者凑一起只有两条路，要么把整个盘开出去（等于没设防），要么让玩家在某些目录下莫名其妙保存失败。自己写反而权限模型更干净，`capabilities` 里只需要一个 `dialog:allow-save`
 
-**验收：** 本机双击 exe 能独立运行；把 exe 发给一位朋友，对方无需安装任何东西即可玩
+**验收：** 本机双击 exe 能独立运行 ✅（已实测，含保存壁纸的原生对话框）；把 exe 发给一位朋友，对方无需安装任何东西即可玩 ⬜ 待做
 
 ---
 
@@ -278,6 +278,8 @@ npm run dev
 | 项 | 说明 |
 |---|---|
 | **跨平台** | Tauri 在 macOS/Linux 用不同 WebView，渲染可能不一致。**当前只针对 Windows**；要跨平台需逐平台验证 |
-| **WebView2 依赖** | Win11 自带；老 Win10 可能没有，靠安装包的 bootstrapper 自动装 |
+| **WebView2 依赖** | Win11 自带；老 Win10 可能没有。安装包的 bootstrapper 会自动联网装，**裸 exe 没有这层兜底**，遇到老系统会白屏 |
+| **SmartScreen 警告** | exe 没有代码签名，朋友从聊天软件收到后双击会弹「Windows 已保护你的电脑 · 未知发布者」。自己 build 的本机不会弹——文件没有「来自网络」标记。要口头说明点「更多信息 → 仍要运行」，或让对方右键文件 → 属性 → 勾「解除锁定」。消除它需要买代码签名证书，本项目不划算 |
+| **聊天软件拦截 exe** | 微信/QQ 可能直接不让发 exe，打成 zip 再发能绕过 |
 | **手感调参无法由 AI 完成** | 参数表只是起点，最终值必须靠人反复试玩——这是本类游戏最耗时也最不可省略的部分 |
 | **关卡平衡** | 5 关的难度曲线需要实际试玩迭代，不是一次设计到位 |
