@@ -134,6 +134,10 @@ export class Player {
     this.body.setGravityY(this.sign * PHYS.GRAVITY_Y);
     this.sprite.setFlipY(this.sign === -1);
     this.flipCooldownTimer = PHYS.FLIP_COOLDOWN;
+    // 翻转后「上升」的含义整个变了，这次跳跃的松手削减就此作废。
+    // 否则玩家在翻转飞行途中松手，会被按「起跳时」的方向判定为仍在上升，
+    // 把新重力刚积累起来的速度一刀砍掉——正是上面注释里说的「撞到隐形墙」。
+    this.jumpCutPending = false;
     // 速度刻意保留：翻转后先沿原方向滑一段，再被新重力拉走。
     // 这段迟滞感是 VVVVVV 手感的关键，把速度清零会让翻转显得生硬。
     this.scene.events.emit('player:flip', this.sign);
@@ -190,12 +194,18 @@ export class Player {
       return;
     }
 
-    // 可变跳跃高度：只在松手的那一刻砍一次速度。
-    // 若每帧都砍，速度会指数衰减，实际跳高会远低于 JUMP_VELOCITY 算出来的值。
+    // 可变跳跃高度：松手时把上升速度压到一个很小的固定值。
+    //
+    // 只在松手这一帧处理，不是每帧处理——每帧都压的话速度会指数衰减，
+    // 实际跳高会远低于 JUMP_VELOCITY 算出来的值。
+    //
+    // 用「压到固定值」而不是「乘以一个系数」：乘法在低端太平，快速点按时
+    // 速度还接近满速，乘完 0.4 依然跳得高，体感上只剩两档。
     if (this.jumpCutPending && !jumpHeld) {
       this.jumpCutPending = false;
-      if (this.isRising(this.jumpSign)) {
-        this.body.setVelocityY(this.body.velocity.y * PHYS.JUMP_CUT_MULTIPLIER);
+      const vy = this.body.velocity.y;
+      if (this.isRising(this.jumpSign) && Math.abs(vy) > PHYS.MAX_RISE_ON_RELEASE) {
+        this.body.setVelocityY(-PHYS.MAX_RISE_ON_RELEASE * this.jumpSign);
       }
     }
   }

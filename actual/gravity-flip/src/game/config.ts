@@ -12,6 +12,14 @@ export const GAME_HEIGHT = 540;
 /** tile 像素尺寸，与 Kenney Pixel Platformer 素材对齐 */
 export const TILE = 18;
 
+/** 一关的格子数。一屏一关，摄像机固定不动 */
+export const LEVEL_COLS = 48;
+export const LEVEL_ROWS = 27;
+
+/** 关卡在画面中的左上角偏移——居中留边，四周各留一点呼吸空间 */
+export const LEVEL_OFFSET_X = Math.round((GAME_WIDTH - LEVEL_COLS * TILE) / 2);
+export const LEVEL_OFFSET_Y = Math.round((GAME_HEIGHT - LEVEL_ROWS * TILE) / 2);
+
 export const PHYS = {
   /** 水平最大速度（像素/秒） */
   MAX_RUN_SPEED: 240,
@@ -37,8 +45,14 @@ export const PHYS = {
   COYOTE_TIME: 100,
   /** 落地前按下的跳跃会被记住多久（毫秒） */
   JUMP_BUFFER: 100,
-  /** 松开跳跃键时上升速度乘以该系数，实现按按键时长控制跳跃高度 */
-  JUMP_CUT_MULTIPLIER: 0.4,
+  /**
+   * 松开跳跃键后允许保留的最大上升速度。
+   *
+   * 用它而不是「速度乘以一个系数」，是因为乘法在低端太平：快速点按时速度
+   * 还接近满速，乘完依然跳得很高，体感上只剩两档。压到固定值后，
+   * 跳高几乎完全由「按住了多久」线性决定。
+   */
+  MAX_RISE_ON_RELEASE: 90,
 
   /** 重力翻转冷却（毫秒），防止连按把自己卡进墙里 */
   FLIP_COOLDOWN: 150,

@@ -38,8 +38,20 @@ export interface ParsedLevel {
 
 /** 把 ASCII 行数组解析成各类实体坐标 */
 export function parseLevel(ascii: readonly string[]): ParsedLevel {
+  if (ascii.length === 0) throw new Error('关卡数据为空');
+
   const rows = ascii.length;
-  const cols = ascii.reduce((max, line) => Math.max(max, line.length), 0);
+  const cols = ascii[0].length;
+
+  // 手写 ASCII 极容易数错长度，而错了之后的表现是「地图莫名缺一块」，
+  // 排查成本远高于在这里直接抛错
+  for (let row = 1; row < rows; row++) {
+    if (ascii[row].length !== cols) {
+      throw new Error(
+        `关卡第 ${row + 1} 行有 ${ascii[row].length} 个字符，与首行的 ${cols} 个不一致`,
+      );
+    }
+  }
 
   const solids: GridPos[] = [];
   const spikes: GridPos[] = [];
