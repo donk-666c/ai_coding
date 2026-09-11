@@ -12,6 +12,46 @@ export const GAME_HEIGHT = 540;
 /** tile 像素尺寸，与 Kenney Pixel Platformer 素材对齐 */
 export const TILE = 18;
 
+/**
+ * 角色贴图的格子尺寸。
+ *
+ * 与地块的 18 不同——Kenney 的角色表是 24×24。角色比格子大是像素平台跳跃的
+ * 常态（Celeste 的角色也比格子高），不必强行缩放到 18：非整数倍缩放会让
+ * 像素大小变得不均匀，画面反而更脏。
+ */
+export const CHAR_SIZE = 24;
+
+/**
+ * Kenney Pixel Platformer 里的帧号。
+ *
+ * 两张表都是 packed 版（无间隔），帧号 = 行 × 列数 + 列。
+ * 地块表 20 列，角色表 9 列。这些数字是看图确认的，不是从文档推的——
+ * 要改先打开 `public/assets/tiles.png` 数一遍。
+ */
+export const FRAMES = {
+  /** 纯泥土块（地块表 row 6 col 1）。四周无边缘、无方向性，平铺不会露接缝 */
+  SOLID: 121,
+  /** 蓝色宇航员的站立帧（角色表 row 0 col 2） */
+  PLAYER_IDLE: 2,
+  /** 同一角色的第二帧，与站立帧垂直错开 1px——这就是 Kenney 的走路动画 */
+  PLAYER_WALK: 3,
+} as const;
+
+/**
+ * 玩家碰撞箱。
+ *
+ * 角色贴图 24×24，但实际画的只有 x=[2..21]、y=[1..23] 这块，脚在 y=23。
+ * body 底部必须对齐脚，否则碰撞箱悬在半空，落地时角色会「陷进」地面；
+ * 宽度取 12 而不是视觉的 20，是为了让玩家能挤过一格宽的缝——
+ * 卡在「看起来明明过得去」的地方是最招人烦的一类 bug。
+ */
+export const PLAYER_BOX = {
+  WIDTH: 12,
+  HEIGHT: 16,
+  OFFSET_X: 6,
+  OFFSET_Y: 7,
+} as const;
+
 /** 一关的格子数。一屏一关，摄像机固定不动 */
 export const LEVEL_COLS = 48;
 export const LEVEL_ROWS = 27;

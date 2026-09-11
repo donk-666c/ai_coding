@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PHYS } from '../config';
+import { FRAMES, PHYS, PLAYER_BOX } from '../config';
 
 /** 重力方向：1 = 向下（常态），-1 = 向上（翻转态） */
 export type GravitySign = 1 | -1;
@@ -89,15 +89,14 @@ export class Player {
     // 方向键与空格会滚动页面，必须拦掉默认行为
     keyboard.addCapture([K.LEFT, K.RIGHT, K.UP, K.DOWN, K.SPACE]);
 
-    this.sprite = scene.physics.add.sprite(x, y, 'player');
+    this.sprite = scene.physics.add.sprite(x, y, 'chars', FRAMES.PLAYER_IDLE);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
     this.body.setGravityY(PHYS.GRAVITY_Y);
     this.body.setMaxVelocity(PHYS.MAX_RUN_SPEED, PHYS.MAX_FALL_SPEED);
-    // 碰撞箱比视觉小一圈：左右各留 3px 容错，
-    // 否则玩家会被「看起来明明能过去」的缝隙卡住，这是最招人烦的一类 bug
-    this.body.setSize(12, 16, false);
-    this.body.setOffset(3, 1);
+    // 尺寸与偏移的取值理由见 config.ts 的 PLAYER_BOX
+    this.body.setSize(PLAYER_BOX.WIDTH, PLAYER_BOX.HEIGHT, false);
+    this.body.setOffset(PLAYER_BOX.OFFSET_X, PLAYER_BOX.OFFSET_Y);
   }
 
   /** 当前重力方向，供场景做视觉反馈 */
@@ -142,6 +141,7 @@ export class Player {
 
     this.updateHorizontal(moveDir, grounded, dt);
     this.updateJump(jumpHeld, grounded);
+    this.updateAnimation(grounded, moveDir);
 
     // 记在最后：下一帧若判定为落地，这里就是撞地瞬间的速度
     this.landingSpeed = Math.abs(this.body.velocity.y);
@@ -240,6 +240,27 @@ export class Player {
       if (this.isRising(this.jumpSign) && Math.abs(vy) > PHYS.MAX_RISE_ON_RELEASE) {
         this.body.setVelocityY(-PHYS.MAX_RISE_ON_RELEASE * this.jumpSign);
       }
+    }
+  }
+
+  /**
+   * 动画与朝向。
+   *
+   * Kenney 的角色表只有两帧，凑不出 idle / run / jump / fall 四套动作——
+   * 两帧全给跑动，静止和滞空都停在站立帧。这种体量的游戏不值得为动画再找一套素材。
+   *
+   * 朝向用 setFlipX，与重力翻转用的 setFlipY 互不干扰：上下颠倒之后
+   * 左右朝向仍然是独立的，翻转态下往左走照样要面向左。
+   */
+  private updateAnimation(grounded: boolean, moveDir: number): void {
+    if (moveDir !== 0) this.sprite.setFlipX(moveDir < 0);
+
+    if (grounded && moveDir !== 0) {
+      // 第二个参数 true：已在播就沿用，不从头重来，否则每一步都会卡一下
+      this.sprite.play('player-run', true);
+    } else {
+      this.sprite.stop();
+      this.sprite.setFrame(FRAMES.PLAYER_IDLE);
     }
   }
 }

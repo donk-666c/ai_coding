@@ -123,6 +123,8 @@ export class Overlay {
   private toastTimer = 0;
   /** 赞助页是从哪进来的——通关后进来要能退回通关页，而不是被踢回主菜单 */
   private sponsorReturn: 'menu' | 'complete' = 'menu';
+  /** 素材是否就绪。没就绪不能放玩家进游戏：Phaser 会拿不存在的纹理去建精灵 */
+  private ready = false;
 
   constructor(game: Phaser.Game) {
     const root = document.getElementById('overlay');
@@ -135,6 +137,11 @@ export class Overlay {
     window.addEventListener('keydown', this.onKeyDown);
     this.game.events.on('level:clear', this.onLevelClear);
     this.game.events.on('game:complete', this.onGameComplete);
+    this.game.events.on('boot:ready', this.onBootReady);
+
+    // 正常时序下 BootScene 的 preload 还没跑完，靠上面那个事件补上；
+    // 但从缓存里瞬间加载完的情况真的存在，所以这里也查一次
+    this.ready = game.textures.exists('chars');
 
     this.showMenu();
   }
@@ -149,7 +156,7 @@ export class Overlay {
         <h1 class="title">翻转引力</h1>
         <p class="subtitle">GRAVITY FLIP</p>
         <div class="menu">
-          <button class="primary" data-act="levels">开始游戏</button>
+          <button class="primary" data-act="levels"${this.ready ? '' : ' disabled'}>开始游戏</button>
           <button data-act="sponsor">赞助作者</button>
         </div>
         <p class="hint">
@@ -375,6 +382,12 @@ export class Overlay {
   private readonly onGameComplete = (): void => {
     this.game.scene.pause('Game');
     void this.showComplete();
+  };
+
+  /** 素材加载完毕。停在主菜单就重画一次，把「开始游戏」解禁 */
+  private readonly onBootReady = (): void => {
+    this.ready = true;
+    if (this.screen === 'menu') this.showMenu();
   };
 
   // ---------- 场景切换 ----------

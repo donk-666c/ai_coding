@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   COLORS,
   FEEL,
+  FRAMES,
   LEVEL_COLS,
   LEVEL_OFFSET_X,
   LEVEL_OFFSET_Y,
@@ -162,7 +163,7 @@ export class GameScene extends Phaser.Scene {
 
     for (const pos of parsed.solids) {
       const p = toWorld(pos);
-      solids.create(p.x + LEVEL_OFFSET_X, p.y + LEVEL_OFFSET_Y, 'solid');
+      solids.create(p.x + LEVEL_OFFSET_X, p.y + LEVEL_OFFSET_Y, 'tiles', FRAMES.SOLID);
     }
 
     for (const pos of parsed.spikes) {

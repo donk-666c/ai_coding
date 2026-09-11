@@ -230,12 +230,13 @@ npm run dev
 
 **文件：** 下载至 `public/assets/`；修改 `BootScene.ts`、`GameScene.ts`
 
-- [ ] **步骤 1：** 下载 [Kenney Pixel Platformer](https://kenney.nl/assets/pixel-platformer)（CC0，可商用，18×18）
-- [ ] **步骤 2：** `BootScene` 改为 `this.load.spritesheet()` 加载真实素材
-- [ ] **步骤 3：** 玩家动画：idle / run / jump / fall / death
-- [ ] **步骤 4：** 调整碰撞箱——像素角色贴图四周留白多，碰撞箱必须单独定尺寸
+- [x] **步骤 1：** 下载 [Kenney Pixel Platformer](https://kenney.nl/assets/pixel-platformer)（CC0，18×18）。GitHub 在本机不通，kenney.nl 可达，直接取的官网 zip
+- [x] **步骤 2：** `BootScene.preload()` 用 `load.spritesheet()` 加载 packed 版表（无间隔，不需要 spacing/margin）。用 packed 版是因为帧号 = 行 × 列数 + 列，算起来最直白
+- [x] **步骤 3：** 玩家动画。**实际只做了跑动**——Kenney 的角色表每个角色只有 2 帧（垂直错开 1px 的走路抖动），凑不出 idle/run/jump/fall/death 五套。两帧全给跑动，静止与滞空停在站立帧。角色表 24×24，比 18px 的地块大，这是像素平台跳跃的常态，不做缩放（非整数倍缩放会让像素大小不均匀）
+- [x] **步骤 4：** 碰撞箱 `12×16` + `offset(6,7)`。offset 是用脚本扫描角色图 alpha 边界测出来的：角色实际画在 `x=[2..21] y=[1..23]`，脚在 y=23，body 底部必须对齐它，否则落地时角色会陷进地面
+- [x] **步骤 5（补）：** 素材里**没有尖刺**——Kenney 这套是冒险风格不是陷阱风格。尖刺与终点继续用代码生成：危险物用高对比纯色三角，可读性比勉强凑一张贴图更好
 
-**验收：** 画面为像素素材，比例正确无拉伸
+**验收：** 画面为像素素材，比例正确无拉伸（**需实际试玩确认观感**）
 
 ---
 
