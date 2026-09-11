@@ -1,0 +1,256 @@
+:root {
+  --bg: #0d0d17;
+  --panel: #181828;
+  --panel-border: #2a2a42;
+  --text: #e6e6f0;
+  --muted: #8b8ba7;
+  --accent: #7dd3fc;
+  --accent-dark: #1e4a63;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC',
+    'Hiragino Sans GB', sans-serif;
+  /* 桌面应用观感：禁止选中与拖拽 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#game canvas {
+  display: block;
+}
+
+/* ---------- DOM 覆盖层 ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(13, 13, 23, 0.97);
+  overflow-y: auto;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 900px;
+  width: 100%;
+  animation: fade-in 0.25s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 标题 ---------- */
+
+.title {
+  margin: 0;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: 0 0 32px rgba(125, 211, 252, 0.35);
+}
+
+.subtitle {
+  margin: -12px 0 0;
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  color: var(--muted);
+}
+
+/* ---------- 按钮 ---------- */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 260px;
+  margin-top: 12px;
+}
+
+button {
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+button.ghost:hover {
+  color: var(--accent);
+  background: transparent;
+  transform: none;
+}
+
+/* ---------- 关卡选择 ---------- */
+
+.level-grid {
+  display: flex;
+  gap: 14px;
+}
+
+.level-btn {
+  width: 84px;
+  height: 84px;
+  font-size: 28px;
+  font-weight: 800;
+  padding: 0;
+}
+
+/* ---------- 通关奖励页 ---------- */
+
+.wallpaper {
+  /* 关键：不施加任何 filter，保持图片原始分辨率与色彩 */
+  max-width: min(92vw, 1080px);
+  max-height: 58vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+}
+
+.reward-text {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.author {
+  margin: -8px 0 0;
+  font-size: 15px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+.author strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---------- 赞助页 ---------- */
+
+.qr-frame {
+  padding: 14px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+  line-height: 0;
+}
+
+.qr-frame img {
+  display: block;
+  width: 264px;
+  height: 264px;
+  /* 关键：杜绝一切会让二维码模糊或错位的渲染方式。
+     微信收款码必须保持原始像素，否则摄像头识别率会显著下降。 */
+  image-rendering: auto;
+  object-fit: contain;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+  text-align: center;
+  max-width: 420px;
+}
+
+/* ---------- 图片缺失时的占位 ---------- */
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  width: 420px;
+  height: 200px;
+  border: 2px dashed var(--panel-border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.placeholder code {
+  color: var(--accent);
+  font-size: 13px;
+  background: var(--panel);
+  padding: 3px 8px;
+  border-radius: 4px;
+}

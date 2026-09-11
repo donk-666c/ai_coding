@@ -1,0 +1,220 @@
+import Phaser from 'phaser';
+import { PHYS } from '../config';
+
+/** 重力方向：1 = 向下（常态），-1 = 向上（翻转态） */
+export type GravitySign = 1 | -1;
+
+/**
+ * 玩家角色与手感层。
+ *
+ * 这是整个项目最需要反复调的文件。精确平台跳跃「操作舒服」的感觉不来自
+ * 任何单一参数，而来自四项机制的配合：
+ *
+ *   1. 土狼时间        离地后仍有一小段时间可以起跳
+ *   2. 跳跃缓冲        落地前按下的跳跃会被记住，落地立刻执行
+ *   3. 可变跳跃高度    按键时长决定跳多高
+ *   4. 地空分离加速度  空中控制力弱于地面，且反向输入时加速更快
+ *
+ * 少任何一项，玩家都会觉得「操作不对劲」，但通常说不清哪里不对。
+ * 全部数值集中在 config.ts，改完保存即可热重载看到区别。
+ */
+export class Player {
+  readonly sprite: Phaser.Physics.Arcade.Sprite;
+
+  private readonly body: Phaser.Physics.Arcade.Body;
+  private readonly scene: Phaser.Scene;
+
+  private readonly keys: {
+    left: readonly Phaser.Input.Keyboard.Key[];
+    right: readonly Phaser.Input.Keyboard.Key[];
+    jump: readonly Phaser.Input.Keyboard.Key[];
+    flip: readonly Phaser.Input.Keyboard.Key[];
+  };
+
+  /** 重力方向。翻转玩法的一切都挂在这个符号上 */
+  private sign: GravitySign = 1;
+
+  // 三项计时器，单位毫秒
+  private coyoteTimer = 0;
+  private jumpBufferTimer = 0;
+  private flipCooldownTimer = 0;
+
+  /**
+   * 本次跳跃是否还允许「松手减速」。
+   * 用一个显式标志而不是只看当前速度方向，是因为翻转重力会让「上升」的
+   * 含义突变——翻转瞬间的误判会把速度直接砍掉，手感上像撞到了隐形墙。
+   */
+  private jumpCutPending = false;
+  /** 起跳时的重力方向，用来判断跳跃是否仍在朝原方向进行 */
+  private jumpSign: GravitySign = 1;
+
+  constructor(scene: Phaser.Scene, x: number, y: number) {
+    this.scene = scene;
+
+    const keyboard = scene.input.keyboard;
+    if (!keyboard) throw new Error('键盘输入不可用：scene.input.keyboard 为空');
+
+    const K = Phaser.Input.Keyboard.KeyCodes;
+    const add = (code: number) => keyboard.addKey(code);
+
+    this.keys = {
+      left: [add(K.LEFT), add(K.A)],
+      right: [add(K.RIGHT), add(K.D)],
+      jump: [add(K.SPACE), add(K.Z)],
+      flip: [add(K.UP), add(K.X)],
+    };
+
+    // 方向键与空格会滚动页面，必须拦掉默认行为
+    keyboard.addCapture([K.LEFT, K.RIGHT, K.UP, K.DOWN, K.SPACE]);
+
+    this.sprite = scene.physics.add.sprite(x, y, 'player');
+    this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
+
+    this.body.setGravityY(PHYS.GRAVITY_Y);
+    this.body.setMaxVelocity(PHYS.MAX_RUN_SPEED, PHYS.MAX_FALL_SPEED);
+    // 碰撞箱比视觉小一圈：左右各留 3px 容错，
+    // 否则玩家会被「看起来明明能过去」的缝隙卡住，这是最招人烦的一类 bug
+    this.body.setSize(12, 16, false);
+    this.body.setOffset(3, 1);
+  }
+
+  /** 当前重力方向，供场景做视觉反馈 */
+  get gravitySign(): GravitySign {
+    return this.sign;
+  }
+
+  update(deltaMs: number): void {
+    // 切走标签页再回来时 delta 会大得离谱，不钳住会一帧穿过整张地图
+    const delta = Math.min(deltaMs, 50);
+    const dt = delta / 1000;
+
+    // JustDown / JustUp 会「消费」按键状态，同一帧只能问一次，
+    // 所以先全部取出来存成布尔值，后面只读这些值。
+    const jumpPressed = anyJustDown(this.keys.jump);
+    const jumpHeld = anyDown(this.keys.jump);
+    const flipPressed = anyJustDown(this.keys.flip);
+    const moveDir = (anyDown(this.keys.right) ? 1 : 0) - (anyDown(this.keys.left) ? 1 : 0);
+
+    // 先翻转再判定接地——翻转会改变「哪边算地面」
+    if (flipPressed && this.flipCooldownTimer <= 0) this.flipGravity();
+    if (this.flipCooldownTimer > 0) this.flipCooldownTimer -= delta;
+
+    const grounded = this.isGrounded();
+
+    if (grounded) {
+      this.coyoteTimer = PHYS.COYOTE_TIME;
+    } else if (this.coyoteTimer > 0) {
+      this.coyoteTimer -= delta;
+    }
+
+    if (jumpPressed) {
+      this.jumpBufferTimer = PHYS.JUMP_BUFFER;
+    } else if (this.jumpBufferTimer > 0) {
+      this.jumpBufferTimer -= delta;
+    }
+
+    this.updateHorizontal(moveDir, grounded, dt);
+    this.updateJump(jumpHeld, grounded);
+  }
+
+  /** 回到出生点。重力方向与全部计时器都要重置，否则会把上一轮的状态带进来 */
+  respawn(x: number, y: number): void {
+    this.body.reset(x, y);
+    this.sign = 1;
+    this.body.setGravityY(PHYS.GRAVITY_Y);
+    this.sprite.setFlipY(false);
+    this.coyoteTimer = 0;
+    this.jumpBufferTimer = 0;
+    this.flipCooldownTimer = 0;
+    this.jumpCutPending = false;
+  }
+
+  private flipGravity(): void {
+    this.sign = this.sign === 1 ? -1 : 1;
+    this.body.setGravityY(this.sign * PHYS.GRAVITY_Y);
+    this.sprite.setFlipY(this.sign === -1);
+    this.flipCooldownTimer = PHYS.FLIP_COOLDOWN;
+    // 速度刻意保留：翻转后先沿原方向滑一段，再被新重力拉走。
+    // 这段迟滞感是 VVVVVV 手感的关键，把速度清零会让翻转显得生硬。
+    this.scene.events.emit('player:flip', this.sign);
+  }
+
+  /**
+   * 是否站在支撑面上。翻转后「地面」是天花板，所以必须跟着符号走。
+   */
+  private isGrounded(): boolean {
+    return this.sign === 1 ? this.body.onFloor() : this.body.onCeiling();
+  }
+
+  /**
+   * 速度是否指向重力反方向（也就是正在「上升」）。
+   * 默认用当前重力方向；判断跳跃状态时要传起跳时记下的方向。
+   */
+  private isRising(sign: GravitySign = this.sign): boolean {
+    return this.body.velocity.y * sign < 0;
+  }
+
+  private updateHorizontal(moveDir: number, grounded: boolean, dt: number): void {
+    let vx = this.body.velocity.x;
+
+    if (moveDir !== 0) {
+      const accel = grounded ? PHYS.RUN_ACCEL : PHYS.AIR_ACCEL;
+      // 反向输入时给更大的加速度，否则急停转向会有明显的「飘」感
+      const turning = vx !== 0 && Math.sign(vx) !== moveDir;
+      const a = turning ? accel * PHYS.TURN_ACCEL_MULTIPLIER : accel;
+      vx = Phaser.Math.Clamp(vx + moveDir * a * dt, -PHYS.MAX_RUN_SPEED, PHYS.MAX_RUN_SPEED);
+    } else {
+      // 手动减速而不用 body.setDrag：drag 会和 acceleration 相互干扰，
+      // 而地面与空中需要的减速度本来就不同，分开算更直白
+      const decel = (grounded ? PHYS.RUN_FRICTION : PHYS.AIR_DRAG) * dt;
+      vx = Math.abs(vx) <= decel ? 0 : vx - Math.sign(vx) * decel;
+    }
+
+    this.body.setVelocityX(vx);
+  }
+
+  private updateJump(jumpHeld: boolean, grounded: boolean): void {
+    // 落地即结束本次跳跃，不再允许松手减速
+    if (grounded) this.jumpCutPending = false;
+
+    // 土狼时间与跳跃缓冲同时有效，才真正起跳——
+    // 只满足一个就跳会变成「二段跳」，都不满足就跳会变成「吞键」
+    if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
+      // 起跳方向始终与重力相反，翻转后自动跟着翻过来
+      this.body.setVelocityY(-PHYS.JUMP_VELOCITY * this.sign);
+      this.jumpBufferTimer = 0;
+      this.coyoteTimer = 0;
+      this.jumpCutPending = true;
+      this.jumpSign = this.sign;
+      this.scene.events.emit('player:jump');
+      return;
+    }
+
+    // 可变跳跃高度：只在松手的那一刻砍一次速度。
+    // 若每帧都砍，速度会指数衰减，实际跳高会远低于 JUMP_VELOCITY 算出来的值。
+    if (this.jumpCutPending && !jumpHeld) {
+      this.jumpCutPending = false;
+      if (this.isRising(this.jumpSign)) {
+        this.body.setVelocityY(this.body.velocity.y * PHYS.JUMP_CUT_MULTIPLIER);
+      }
+    }
+  }
+}
+
+/**
+ * JustDown 每问一次就消费掉该键的状态，所以：
+ * 同一帧里必须一次性把所有键都问完，而且不能短路——
+ * 用 some 之类的写法会让后面没查到的键白白丢掉一次按下。
+ */
+function anyJustDown(keys: readonly Phaser.Input.Keyboard.Key[]): boolean {
+  let hit = false;
+  for (const key of keys) {
+    if (Phaser.Input.Keyboard.JustDown(key)) hit = true;
+  }
+  return hit;
+}
+
+/** isDown 是只读的，没有消费问题，可以安全短路 */
+function anyDown(keys: readonly Phaser.Input.Keyboard.Key[]): boolean {
+  return keys.some((key) => key.isDown);
+}

@@ -1,0 +1,259 @@
+# 《翻转引力》实现计划
+
+> **面向 AI 代理的工作者：** 必需子技能：使用 superpowers:executing-plans 逐任务实现此计划（已选定内联执行）。步骤使用复选框（`- [ ]`）语法跟踪进度。
+
+**目标：** 做一个重力翻转题材的精确平台跳跃游戏，5 关，打包成可发给朋友直接玩的 Windows 桌面应用。
+
+**架构：** Phaser 3.90 负责游戏画面（Canvas 层），所有中文界面走 HTML DOM 覆盖层——理由是中文不必嵌字体、二维码不会被 pixelArt 打成马赛克、自适应布局用 CSS 更省事。Tauri 2 套壳分发。
+
+**技术栈：** Phaser 3.90 / TypeScript 5.7 / Vite 6 / Tauri 2
+
+**完整技术决策与调参入口见项目根 `CLAUDE.md`。**
+
+---
+
+## 全局约束
+
+- **逻辑分辨率 960×540**，一关 = 48×27 格 × 18px = 864×486 像素，摄像机固定
+- **关卡每行必须 48 字符等长**，不等长 parser 抛错
+- **中文不出现于 Canvas 层**，全部走 DOM
+- **收款码与壁纸用 DOM 渲染**，不加任何 CSS filter
+- **手感参数全部集中在 `src/game/config.ts`**，不散落在各处
+- 所有面向用户的文本用中文；代码、变量名、路径用英文
+
+---
+
+## 文件结构
+
+| 文件 | 职责 | 状态 |
+|---|---|---|
+| `package.json` `tsconfig.json` `vite.config.ts` `.gitignore` | 工程配置 | ✅ |
+| `index.html` | 含 DOM 覆盖层容器 | ✅ |
+| `src/style.css` | DOM 层全部样式 | ✅ |
+| `src/game/config.ts` | 手感参数 + 配色（唯一调参入口） | ✅ |
+| `src/game/level/parser.ts` | ASCII → 实体坐标 | ✅ |
+| `src/game/level/levels.ts` | 5 关 ASCII 数据 | ✅ |
+| `src/game/objects/Player.ts` | 玩家与四项手感机制 | ✅ T3 |
+| `src/game/scenes/BootScene.ts` | 用代码生成纹理（占位素材） | ⬜ T4 |
+| `src/game/scenes/GameScene.ts` | 关卡构建、碰撞、死亡与通关 | ⬜ T4 |
+| `src/main.ts` | Phaser.Game 启动配置 | ⬜ T4 |
+| `src/ui/overlay.ts` | DOM 覆盖层控制器 | ⬜ T5 |
+| `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ⬜ T6 |
+| `public/assets/` | 素材（用户提供的两张图放这里） | ⬜ T8 |
+| `src-tauri/` | Tauri 壳 | ⬜ T9 |
+
+---
+
+## 任务 1：项目脚手架
+
+**文件：** 创建 `package.json`、`tsconfig.json`、`vite.config.ts`、`.gitignore`、`index.html`、`src/style.css`
+
+- [x] **步骤 1：** 手写工程配置（`npx degit` 拉官方模板失败——GitHub 不可达）
+- [x] **步骤 2：** `npm install` 安装 Phaser / Vite / TypeScript
+- [x] **步骤 3：** `vite.config.ts` 设 `base: './'`（Tauri 打包后从自定义协议加载，绝对路径会 404）
+- [x] **步骤 4：** `index.html` 建 `<div id="overlay">` 覆盖层容器
+- [x] **步骤 5：** `style.css` 中二维码显式声明 `image-rendering: auto`
+
+**验收：** `npm install` 退出码 0 ✅
+
+---
+
+## 任务 2：配置层与关卡解析器
+
+**文件：** 创建 `src/game/config.ts`、`src/game/level/parser.ts`、`src/game/level/levels.ts`
+
+- [x] **步骤 1：** `config.ts` 集中全部手感参数（`MAX_RUN_SPEED: 240`、`JUMP_VELOCITY: 460`、`GRAVITY_Y: 1500`、`COYOTE_TIME: 100`、`JUMP_BUFFER: 100`、`JUMP_CUT_MULTIPLIER: 0.4`、`FLIP_COOLDOWN: 150`）
+- [x] **步骤 2：** `parser.ts` 定义字符约定并解析为坐标数组；缺 `P` 或 `G` 直接抛错
+- [x] **步骤 3：** `parser.ts` 校验所有行等长，不等长抛错（手写 ASCII 极易数错）
+- [x] **步骤 4：** `levels.ts` 写 5 关 ASCII 数据
+- [x] **步骤 5：** 用 node 脚本校验 5 关每行长度均为 48
+- [x] **步骤 6（补）：** 终点改为 `goals: GridPos[]` 数组——关卡里终点写成连续的 `GGG`，只记最后一格会让终点缩成 1 格宽
+
+**验收：** 长度校验脚本报告 0 行异常 ✅
+
+---
+
+## 任务 3：玩家手感层
+
+**文件：** 创建 `src/game/objects/Player.ts`；修改 `src/game/config.ts`
+
+本项目最关键的一个文件。四项手感机制缺一不可。
+
+- [x] **步骤 1：** 类骨架——持有 sprite、body、按键映射（左右：`←→`/`AD`；跳跃：`空格`/`Z`；翻转：`↑`/`X`）
+- [x] **步骤 2：** 实现重力翻转。全部实现是改 body 自身的 gravityY 符号：
+
+```ts
+private flipGravity(): void {
+  this.sign = this.sign === 1 ? -1 : 1;
+  this.body.setGravityY(this.sign * PHYS.GRAVITY_Y);
+  this.sprite.setFlipY(this.sign === -1);
+  this.flipCooldownTimer = PHYS.FLIP_COOLDOWN;
+  // 速度刻意保留：翻转后先沿原方向滑一小段再被新重力拉走。
+  // 这个迟滞感是 VVVVVV 手感的关键，清空速度会让翻转显得生硬。
+}
+```
+
+- [x] **步骤 3：** 实现两个必须随重力方向翻转语义的判断：
+
+```ts
+/** 翻转后「地面」是天花板 */
+private isGrounded(): boolean {
+  return this.sign === 1 ? this.body.onFloor() : this.body.onCeiling();
+}
+
+/**
+ * 是否正沿重力反方向运动（正在「上升」）。
+ * 带参数是因为判断跳跃状态时要传「起跳时」记下的方向——
+ * 翻转会让当前方向突变，用它去判断旧跳跃会把速度误砍。
+ */
+private isRising(sign: GravitySign = this.sign): boolean {
+  return this.body.velocity.y * sign < 0;
+}
+```
+
+- [x] **步骤 4：** 实现土狼时间——站在支撑面上时计时器保持满值，离地后倒计时
+- [x] **步骤 5：** 实现跳跃缓冲 + 起跳判定（两者同时有效才真正起跳）：
+
+```ts
+if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
+  this.body.setVelocityY(-PHYS.JUMP_VELOCITY * this.sign);
+  this.jumpBufferTimer = 0;
+  this.coyoteTimer = 0;
+  this.jumpCutPending = true;
+  this.jumpSign = this.sign;
+}
+```
+
+- [x] **步骤 6：** 实现可变跳跃高度——仅在**松手那一帧**削减上升速度，不是每帧削减（每帧削减会让速度指数衰减，跳高远低于预期）
+- [x] **步骤 7：** 实现水平控制——地面/空中分离的加速度；无输入时手动改速度而非用 Phaser 的 drag（drag 与 acceleration 会相互干扰）
+- [x] **步骤 8：** `JustDown`/`JustUp` 每帧只检测一次。它们会消费标志位，多次调用会漏判。多按键检测必须遍历全部而非短路：
+
+```ts
+function anyJustDown(keys: readonly Phaser.Input.Keyboard.Key[]): boolean {
+  let hit = false;
+  for (const key of keys) {
+    if (Phaser.Input.Keyboard.JustDown(key)) hit = true;
+  }
+  return hit;
+}
+```
+
+- [x] **步骤 9：** 实现 `respawn()`——重置重力方向、位置、速度与全部计时器
+- [x] **步骤 10（补）：** `config.ts` 新增 `TURN_ACCEL_MULTIPLIER: 2`——反向输入时用双倍加速度，否则急停转向有「飘」感
+- [x] **步骤 11（补）：** 碰撞箱设为 12×16 + offset(3,1)，比 18×18 的视觉小一圈，避免玩家被「看起来能过去」的缝隙卡住
+
+**验收：** `npx tsc --noEmit` 退出码 0 ✅
+
+---
+
+## 任务 4：场景与启动（可玩里程碑）
+
+**文件：** 创建 `src/game/scenes/BootScene.ts`、`src/game/scenes/GameScene.ts`、`src/main.ts`
+
+完成后应能在浏览器里跑、跳、翻转。
+
+- [ ] **步骤 1：** `BootScene` 用 `Graphics.generateTexture()` 生成占位纹理（solid / spike / player / goal），先不依赖外部素材
+- [ ] **步骤 2：** `GameScene.buildLevel()` 解析 ASCII，用静态物理组创建实心块与尖刺
+- [ ] **步骤 3：** 设置 `physics.world.setBounds()` 留出上下余量——翻转时玩家会飞出天花板缺口，需要边界兜住
+- [ ] **步骤 4：** 碰撞：玩家 × 实心块 = `collider`；玩家 × 尖刺 = `overlap` → 死亡重生
+- [ ] **步骤 5：** `main.ts` 配置 Phaser：`pixelArt: true`、`scale.mode: FIT`、**`arcade.gravity = {x:0, y:0}`**（全局重力必须为 0，每个 body 自己设）
+- [ ] **步骤 6：** 通关检测：碰到 `G` 且有下一关则 `scene.restart({ level: n+1 })`，否则派发 `game:complete` 事件给 DOM 层
+
+**验收：**
+```
+npm run dev
+```
+浏览器打开 `localhost:8080`，能用方向键移动、空格跳跃、↑/X 翻转重力，碰到尖刺回到出生点
+
+---
+
+## 任务 5：DOM 覆盖层
+
+**文件：** 创建 `src/ui/overlay.ts`；修改 `src/main.ts`、`index.html`
+
+- [ ] **步骤 1：** 实现 `showScreen(name, data)` / `hideOverlay()` 两个入口，其余界面内容由此渲染
+- [ ] **步骤 2：** 主菜单——标题《翻转引力》、开始游戏、赞助、**操作说明**（←→ 移动 / 空格 跳跃 / ↑ 翻转重力）
+- [ ] **步骤 3：** 关卡选择——5 个按钮，未通关的关卡禁用
+- [ ] **步骤 4：** 进度存档用 `localStorage`（记录已通关关卡、每关最佳死亡数与用时）
+- [ ] **步骤 5：** 游戏内 HUD（关卡号、死亡数、计时）用 Phaser 渲染——只有数字，不需要中文字体
+
+**验收：** 主菜单能开始游戏，通关一关后返回菜单能看到下一关解锁
+
+---
+
+## 任务 6：通关奖励页与赞助页
+
+**文件：** 创建 `src/ui/save-wallpaper.ts`；修改 `src/ui/overlay.ts`
+
+**需要用户提供两个文件**（未提供时显示占位提示，不阻塞开发）：
+- `public/assets/wallpaper.png` —— 通关壁纸
+- `public/assets/sponsor-qr.png` —— 微信收款码
+
+- [ ] **步骤 1：** 通关奖励页——壁纸（等比例自适应）+ 文案「恭喜你通关，获得精美壁纸一张」+ 署名「作者 act666」
+- [ ] **步骤 2：** 保存壁纸按钮。Tauri 环境用 `@tauri-apps/plugin-dialog` + `plugin-fs` 弹保存对话框；Web 环境降级为 `a[download]`。**没有这个按钮「获得壁纸」就是空话，玩家看得见拿不走**
+
+```ts
+export async function saveWallpaper(url: string, filename: string): Promise<void> {
+  if ('__TAURI_INTERNALS__' in window) {
+    // Tauri：原生保存对话框
+  } else {
+    // Web：触发下载
+  }
+}
+```
+
+- [ ] **步骤 3：** 赞助页——收款码原尺寸展示，**不加缩放的 CSS 变换**，主菜单与通关页均有入口
+- [ ] **步骤 4：** 素材缺失时渲染 `.placeholder` 提示，而非破图
+
+**验收：** 用真实收款码图片，**手机实际扫码能扫出来**（必须真扫，这是像素化问题的唯一验证方式）
+
+---
+
+## 任务 7：表现层
+
+**文件：** 修改 `src/game/scenes/GameScene.ts`、`src/game/objects/Player.ts`
+
+- [ ] **步骤 1：** 落地尘土粒子（落地速度越快越明显）
+- [ ] **步骤 2：** 死亡像素爆散粒子 + 摄像机短促震动
+- [ ] **步骤 3：** 翻转时的视觉反馈（`setFlipY` 已有，补充速度线或颜色闪烁）
+- [ ] **步骤 4：** 音效——跳跃、翻转、死亡、通关。可用 Web Audio 实时合成（零素材体积）
+
+**验收：** 手感反馈明显但不干扰操作判断
+
+---
+
+## 任务 8：Kenney 像素素材接入
+
+**文件：** 下载至 `public/assets/`；修改 `BootScene.ts`、`GameScene.ts`
+
+- [ ] **步骤 1：** 下载 [Kenney Pixel Platformer](https://kenney.nl/assets/pixel-platformer)（CC0，可商用，18×18）
+- [ ] **步骤 2：** `BootScene` 改为 `this.load.spritesheet()` 加载真实素材
+- [ ] **步骤 3：** 玩家动画：idle / run / jump / fall / death
+- [ ] **步骤 4：** 调整碰撞箱——像素角色贴图四周留白多，碰撞箱必须单独定尺寸
+
+**验收：** 画面为像素素材，比例正确无拉伸
+
+---
+
+## 任务 9：Tauri 打包
+
+**文件：** 创建 `src-tauri/`
+
+- [ ] **步骤 1：** `npm create tauri-app` 或手动添加 `src-tauri/`
+- [ ] **步骤 2：** `tauri.conf.json` 的 `frontendDist` 指向 `../dist`，窗口标题设「翻转引力」
+- [ ] **步骤 3：** 窗口配置：固定逻辑尺寸、禁止右键菜单、`resizable` 按需
+- [ ] **步骤 4：** `webviewInstallMode` 先用默认 `downloadBootstrapper`（包约 5MB，首次运行需联网装 WebView2）；若分发对象环境不确定，改 `offlineInstaller`（约 130MB，完全离线）
+- [ ] **步骤 5：** `npm run tauri build` 产出 exe
+
+**验收：** 本机双击 exe 能独立运行；把 exe 发给一位朋友，对方无需安装任何东西即可玩
+
+---
+
+## 风险与已知取舍
+
+| 项 | 说明 |
+|---|---|
+| **跨平台** | Tauri 在 macOS/Linux 用不同 WebView，渲染可能不一致。**当前只针对 Windows**；要跨平台需逐平台验证 |
+| **WebView2 依赖** | Win11 自带；老 Win10 可能没有，靠安装包的 bootstrapper 自动装 |
+| **手感调参无法由 AI 完成** | 参数表只是起点，最终值必须靠人反复试玩——这是本类游戏最耗时也最不可省略的部分 |
+| **关卡平衡** | 5 关的难度曲线需要实际试玩迭代，不是一次设计到位 |

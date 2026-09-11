@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>翻转引力</title>
+</head>
+<body>
+  <!-- Phaser 画布挂载点 -->
+  <div id="game"></div>
+
+  <!--
+    DOM 覆盖层：承载所有中文界面（主菜单 / 关卡选择 / 通关奖励 / 赞助）
+    独立于 Phaser canvas 之外，原因：
+      1. 中文不必嵌入字体文件，直接用系统字体
+      2. 收款码与壁纸以原始分辨率渲染，不会被 pixelArt 打成马赛克
+      3. 自适应布局用 CSS 即可，不必手算坐标
+  -->
+  <div id="overlay" class="hidden"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
