@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from './game/config';
 import { BootScene } from './game/scenes/BootScene';
 import { GameScene } from './game/scenes/GameScene';
+import { Overlay } from './ui/overlay';
 import './style.css';
 
 const game = new Phaser.Game({
@@ -32,5 +33,6 @@ const game = new Phaser.Game({
   scene: [BootScene, GameScene],
 });
 
-// 供 DOM 覆盖层取用（场景切换、事件订阅都从这里进）
-export default game;
+// DOM 覆盖层接管全部中文界面，也接管「什么时候开始游戏」。
+// 它一构造就显示主菜单，此时 Phaser 那边还停在 BootScene 生成纹理的阶段。
+new Overlay(game);

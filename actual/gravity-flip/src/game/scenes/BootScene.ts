@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, TILE } from '../config';
 
 /**
- * 启动场景：用代码画出全部纹理，然后直接进游戏。
+ * 启动场景：用代码画出全部纹理。
  *
  * 现阶段不加载任何外部素材，好处是「能不能跑」和「素材对不对」两件事
  * 互不干扰——占位图形一旦跑通，之后换成 Kenney 素材时如果出问题，
@@ -15,7 +15,9 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.makeTextures();
-    this.scene.start('Game', { level: 0 });
+    // 纹理就绪后这个场景就没用了。何时进游戏由 DOM 主菜单决定，
+    // 所以这里不启动任何场景——canvas 空着不影响观感，覆盖层是全屏不透明的
+    this.scene.stop();
   }
 
   private makeTextures(): void {

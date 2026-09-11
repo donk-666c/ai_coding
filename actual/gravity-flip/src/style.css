@@ -82,6 +82,11 @@ body {
   text-shadow: 0 0 32px rgba(125, 211, 252, 0.35);
 }
 
+/* 次级界面（关卡选择 / 暂停 / 通关）用的缩小版标题 */
+.title.small {
+  font-size: 38px;
+}
+
 .subtitle {
   margin: -12px 0 0;
   font-size: 15px;
@@ -227,6 +232,32 @@ button.ghost:hover {
   color: var(--muted);
   text-align: center;
   max-width: 420px;
+}
+
+/* ---------- 轻提示 ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translate(-50%, 12px);
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* ---------- 图片缺失时的占位 ---------- */

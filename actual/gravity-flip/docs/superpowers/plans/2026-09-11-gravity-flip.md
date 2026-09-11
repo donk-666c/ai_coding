@@ -34,10 +34,10 @@
 | `src/game/level/parser.ts` | ASCII → 实体坐标 | ✅ |
 | `src/game/level/levels.ts` | 5 关 ASCII 数据 | ✅ |
 | `src/game/objects/Player.ts` | 玩家与四项手感机制 | ✅ T3 |
-| `src/game/scenes/BootScene.ts` | 用代码生成纹理（占位素材） | ⬜ T4 |
-| `src/game/scenes/GameScene.ts` | 关卡构建、碰撞、死亡与通关 | ⬜ T4 |
-| `src/main.ts` | Phaser.Game 启动配置 | ⬜ T4 |
-| `src/ui/overlay.ts` | DOM 覆盖层控制器 | ⬜ T5 |
+| `src/game/scenes/BootScene.ts` | 用代码生成纹理（占位素材） | ✅ T4 |
+| `src/game/scenes/GameScene.ts` | 关卡构建、碰撞、死亡与通关 | ✅ T4 |
+| `src/main.ts` | Phaser.Game 启动配置 + 覆盖层接线 | ✅ T4 |
+| `src/ui/overlay.ts` | DOM 覆盖层控制器 | ✅ T5 |
 | `src/ui/save-wallpaper.ts` | 保存壁纸（Tauri / Web 双路径） | ⬜ T6 |
 | `public/assets/` | 素材（用户提供的两张图放这里） | ⬜ T8 |
 | `src-tauri/` | Tauri 壳 | ⬜ T9 |
@@ -179,13 +179,15 @@ npm run dev
 
 **文件：** 创建 `src/ui/overlay.ts`；修改 `src/main.ts`、`index.html`
 
-- [ ] **步骤 1：** 实现 `showScreen(name, data)` / `hideOverlay()` 两个入口，其余界面内容由此渲染
-- [ ] **步骤 2：** 主菜单——标题《翻转引力》、开始游戏、赞助、**操作说明**（←→ 移动 / 空格 跳跃 / ↑ 翻转重力）
-- [ ] **步骤 3：** 关卡选择——5 个按钮，未通关的关卡禁用
-- [ ] **步骤 4：** 进度存档用 `localStorage`（记录已通关关卡、每关最佳死亡数与用时）
-- [ ] **步骤 5：** 游戏内 HUD（关卡号、死亡数、计时）用 Phaser 渲染——只有数字，不需要中文字体
+- [x] **步骤 1：** 覆盖层入口——私有的 `show(screen, html)` / `hide()` 两个方法，各界面（主菜单 / 关卡选择 / 赞助 / 暂停 / 通关）自己渲染模板。点击事件用委托挂在根节点上，界面重建时不必重新绑事件
+- [x] **步骤 2：** 主菜单——标题《翻转引力》、开始游戏、赞助作者、操作说明（←→ 移动 / 空格 跳跃 / ↑ 翻转重力）
+- [x] **步骤 3：** 关卡选择——5 个按钮，未通关的禁用；最好成绩塞进 `title` 属性（按钮只有 84px 见方，放不下文字）
+- [x] **步骤 4：** 进度存档用 `localStorage`，记录已通关关卡与每关最佳死亡数、用时（死亡数优先，相同才比用时）
+- [x] **步骤 5：** 游戏内 HUD 用 Phaser 渲染——只有数字，不需要中文字体（T4 已完成）
+- [x] **步骤 6（补）：** 暂停菜单——游戏内按 Esc 唤出「继续游戏 / 返回主菜单」。没有这个出口，玩家进了游戏就回不来
+- [x] **步骤 7（补）：** `BootScene` 改为生成纹理后直接 `stop()`，不再自行进入游戏；何时开始由主菜单决定
 
-**验收：** 主菜单能开始游戏，通关一关后返回菜单能看到下一关解锁
+**验收：** 主菜单能开始游戏，通关一关后返回菜单能看到下一关解锁，刷新页面进度仍在
 
 ---
 
@@ -197,21 +199,13 @@ npm run dev
 - `public/assets/wallpaper.png` —— 通关壁纸
 - `public/assets/sponsor-qr.png` —— 微信收款码
 
-- [ ] **步骤 1：** 通关奖励页——壁纸（等比例自适应）+ 文案「恭喜你通关，获得精美壁纸一张」+ 署名「作者 act666」
-- [ ] **步骤 2：** 保存壁纸按钮。Tauri 环境用 `@tauri-apps/plugin-dialog` + `plugin-fs` 弹保存对话框；Web 环境降级为 `a[download]`。**没有这个按钮「获得壁纸」就是空话，玩家看得见拿不走**
-
-```ts
-export async function saveWallpaper(url: string, filename: string): Promise<void> {
-  if ('__TAURI_INTERNALS__' in window) {
-    // Tauri：原生保存对话框
-  } else {
-    // Web：触发下载
-  }
-}
-```
-
-- [ ] **步骤 3：** 赞助页——收款码原尺寸展示，**不加缩放的 CSS 变换**，主菜单与通关页均有入口
-- [ ] **步骤 4：** 素材缺失时渲染 `.placeholder` 提示，而非破图
+- [x] **步骤 1：** 通关奖励页——壁纸（等比例自适应）+ 文案「恭喜你通关，获得精美壁纸一张」+ 署名「作者 act666」
+- [x] **步骤 2：** 保存壁纸按钮。Web 环境用 `a[download]` 触发下载，结果以轻提示反馈（成功 / 取消 / 失败三种文案）
+- [x] **步骤 3：** 赞助页——收款码原尺寸展示，不加缩放变换；主菜单与通关页都有入口，从通关页进来时返回键退回通关页而不是主菜单
+- [x] **步骤 4：** 素材缺失时渲染 `.placeholder` 提示而非破图；壁纸缺失时「保存壁纸」按钮直接置灰，而不是让玩家点了才发现失败
+- [x] **步骤 5（补）：** 新建 `public/assets/` 并附 README，写明两个文件的规格要求（收款码必须用原图，判定标准是真拿手机扫一次）
+- [ ] **步骤 6（推迟到 T9）：** Tauri 原生保存对话框（`plugin-dialog` + `plugin-fs`）。这条路径必须在 Tauri 环境里才验证得了，现在写等于盲写；`SaveOutcome` 已预留 `'cancelled'`，届时补上分支即可
+- [ ] **步骤 7（待素材）：** 放入 `public/assets/wallpaper.png` 与 `public/assets/sponsor-qr.png`
 
 **验收：** 用真实收款码图片，**手机实际扫码能扫出来**（必须真扫，这是像素化问题的唯一验证方式）
 
