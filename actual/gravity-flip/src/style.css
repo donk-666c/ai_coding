@@ -236,28 +236,52 @@ button.ghost:hover {
 
 /* ---------- 轻提示 ---------- */
 
-.toast {
+/*
+ * 用 id 选择器而不是 class：这个元素挂在 #overlay 外面——游戏进行中覆盖层是
+ * 隐藏的，而「发现飞行」那类提示恰恰要在游戏里弹出来。
+ */
+#toast {
   position: fixed;
   left: 50%;
-  bottom: 40px;
-  transform: translate(-50%, 12px);
-  padding: 10px 22px;
-  border-radius: 8px;
-  background: var(--panel);
+  bottom: 48px;
+  /* 高于 #overlay 的 z-index 10：通关页盖住画面时，提示也要能浮在上面 */
+  z-index: 20;
+  max-width: 80vw;
+  padding: 16px 30px;
+  border-radius: 12px;
+  /* 留一点透明：提示弹出时游戏还在跑，把画面盖死会让玩家找不到自己掉到哪了 */
+  background: rgba(24, 24, 40, 0.94);
   border: 1px solid var(--panel-border);
+  /* 左侧加粗成一条强调边，与「危险物用高对比色」是同一种思路 */
+  border-left: 4px solid var(--accent);
   color: var(--text);
-  font-size: 15px;
-  letter-spacing: 0.04em;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 0 28px rgba(125, 211, 252, 0.22);
   opacity: 0;
+  transform: translate(-50%, 12px);
   pointer-events: none;
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity 0.22s ease,
+    transform 0.22s ease;
 }
 
-.toast.show {
+#toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* ---------- 成就 ---------- */
+
+.achievement {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: #fbbf24;
 }
 
 /* ---------- 图片缺失时的占位 ---------- */

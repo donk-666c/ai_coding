@@ -35,6 +35,8 @@ interface Progress {
 }
 
 const STORAGE_KEY = 'gravity-flip.progress';
+/** 飞行彩蛋的成就标记。与关卡进度分开存——两者的生命周期不一样，混在一起改一个就会碰到另一个 */
+const HOVER_KEY = 'gravity-flip.hover-found';
 
 function loadProgress(): Progress {
   try {
@@ -57,6 +59,22 @@ function saveProgress(progress: Progress): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch {
     // 无痕模式下 localStorage 会抛异常。丢进度可以接受，崩掉不行
+  }
+}
+
+function loadHoverAchievement(): boolean {
+  try {
+    return localStorage.getItem(HOVER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveHoverAchievement(): void {
+  try {
+    localStorage.setItem(HOVER_KEY, '1');
+  } catch {
+    // 同上，丢个成就而已
   }
 }
 
@@ -125,6 +143,10 @@ export class Overlay {
   private sponsorReturn: 'menu' | 'complete' = 'menu';
   /** 素材是否就绪。没就绪不能放玩家进游戏：Phaser 会拿不存在的纹理去建精灵 */
   private ready = false;
+  /** 飞行彩蛋是否已解锁，决定主菜单要不要显示成就 */
+  private hoverUnlocked = false;
+  /** 常驻的轻提示元素。它挂在覆盖层外面，游戏进行中也能弹 */
+  private readonly toastEl: HTMLElement | null;
 
   constructor(game: Phaser.Game) {
     const root = document.getElementById('overlay');
@@ -132,11 +154,14 @@ export class Overlay {
     this.root = root;
     this.game = game;
     this.progress = loadProgress();
+    this.hoverUnlocked = loadHoverAchievement();
+    this.toastEl = document.getElementById('toast');
 
     this.root.addEventListener('click', this.onClick);
     window.addEventListener('keydown', this.onKeyDown);
     this.game.events.on('level:clear', this.onLevelClear);
     this.game.events.on('game:complete', this.onGameComplete);
+    this.game.events.on('player:hovering', this.onHovering);
     this.game.events.on('boot:ready', this.onBootReady);
 
     // 正常时序下 BootScene 的 preload 还没跑完，靠上面那个事件补上；
@@ -163,6 +188,7 @@ export class Overlay {
           ← → 或 A D　移动　·　空格 或 Z　跳跃　·　↑ 或 X　翻转重力<br />
           碰到尖刺、掉出屏幕都会回到起点
         </p>
+        ${this.hoverUnlocked ? '<p class="achievement">✦ 成就：发现飞行</p>' : ''}
       </div>
       `,
     );
@@ -247,7 +273,6 @@ export class Overlay {
           <button data-act="sponsor" data-from="complete">赞助作者</button>
         </div>
         <button class="ghost" data-act="menu">返回主菜单</button>
-        <div class="toast" id="toast"></div>
       </div>
       `,
     );
@@ -296,14 +321,15 @@ export class Overlay {
   }
 
   private toast(message: string): void {
-    const el = this.root.querySelector('#toast');
-    if (!el) return;
+    if (!this.toastEl) return;
 
-    el.textContent = message;
-    el.classList.add('show');
+    this.toastEl.textContent = message;
+    this.toastEl.classList.add('show');
 
     window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => el.classList.remove('show'), 2600);
+    this.toastTimer = window.setTimeout(() => {
+      this.toastEl?.classList.remove('show');
+    }, 2600);
   }
 
   // ---------- 交互 ----------
@@ -388,6 +414,20 @@ export class Overlay {
   private readonly onBootReady = (): void => {
     this.ready = true;
     if (this.screen === 'menu') this.showMenu();
+  };
+
+  /**
+   * 飞行彩蛋被触发了。
+   *
+   * 用轻提示而不是整屏界面——玩家正悬在半空，挡住画面等于毁掉这一刻。
+   * 成就只在第一次写入，但提示每次都会弹：玩家多半想再演一遍给别人看。
+   */
+  private readonly onHovering = (): void => {
+    if (!this.hoverUnlocked) {
+      this.hoverUnlocked = true;
+      saveHoverAchievement();
+    }
+    this.toast('你发现了飞行——这不在设计之内，但挺酷的');
   };
 
   // ---------- 场景切换 ----------

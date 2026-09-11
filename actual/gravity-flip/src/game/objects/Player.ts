@@ -19,6 +19,8 @@ export interface PlayerHooks {
   onFlip?: (sign: GravitySign) => void;
   /** 落地，参数是撞地瞬间的下落速度绝对值 */
   onLand?: (impact: number) => void;
+  /** 连续滞空超过阈值，即「发现飞行」。每关最多报一次 */
+  onHover?: () => void;
 }
 
 /**
@@ -69,6 +71,11 @@ export class Player {
   private wasGrounded = true;
   /** 上一帧末尾的垂直速度绝对值，落地时用它衡量撞击力度 */
   private landingSpeed = 0;
+
+  /** 连续滞空时长（毫秒），接地即清零 */
+  private airborneTime = 0;
+  /** 本关是否已经报过「发现飞行」。没有这个标志，悬停期间会每帧触发一次 */
+  private hoveringReported = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, hooks: PlayerHooks = {}) {
     this.hooks = hooks;
@@ -129,8 +136,20 @@ export class Player {
 
     if (grounded) {
       this.coyoteTimer = PHYS.COYOTE_TIME;
-    } else if (this.coyoteTimer > 0) {
-      this.coyoteTimer -= delta;
+      this.airborneTime = 0;
+    } else {
+      if (this.coyoteTimer > 0) this.coyoteTimer -= delta;
+
+      // 飞行彩蛋。卡着节奏反复翻转就能悬停——这是「翻转保留速度」加冷却时间的
+      // 副产品，不是 bug，玩家多半以为自己在钻空子，值得给一句回应。
+      // 落地面和落天花板都算接地，所以第 4 关那种「落到天花板再翻下来」的
+      // 正常操作会不断清零，只有一直不碰任何东西才累加得起来。
+      // 报过一次就不再报：悬停期间每帧都满足条件，没有标志会刷成满屏
+      this.airborneTime += delta;
+      if (!this.hoveringReported && this.airborneTime >= PHYS.HOVER_THRESHOLD) {
+        this.hoveringReported = true;
+        this.hooks.onHover?.();
+      }
     }
 
     if (jumpPressed) {
@@ -160,6 +179,8 @@ export class Player {
     // 传送不算落地：不重置的话，出生点在地面上的关卡每次复活都会扬一圈土
     this.wasGrounded = true;
     this.landingSpeed = 0;
+    // 滞空计时清零，但 hoveringReported 保留——本关已经报过就不再报
+    this.airborneTime = 0;
   }
 
   private flipGravity(): void {

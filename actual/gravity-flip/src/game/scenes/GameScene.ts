@@ -105,6 +105,8 @@ export class GameScene extends Phaser.Scene {
       onJump: () => sfx.jump(),
       onFlip: (sign) => this.onFlip(sign),
       onLand: (impact) => this.onLand(impact),
+      // 彩蛋交给 DOM 层去说——canvas 里不出现中文，这是全项目的分工
+      onHover: () => this.game.events.emit('player:hovering'),
     });
     this.player.sprite.setCollideWorldBounds(true);
     this.player.sprite.setDepth(5);
