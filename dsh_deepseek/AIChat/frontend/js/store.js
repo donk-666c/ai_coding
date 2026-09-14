@@ -8,9 +8,8 @@ const Store = (() => {
     activeId: null,
     settings: {
       model: '',
-      // 女友场景的默认值：温度高一点更有人味，回复短一点更像聊天
-      temperature: 0.9,
-      maxTokens: 1024,
+      temperature: 0.7,
+      maxTokens: 4096,
       systemPrompt: '',
       thinking: false,
     },
@@ -52,23 +51,13 @@ const Store = (() => {
   const sorted = () => [...state.conversations].sort((a, b) => b.updatedAt - a.updatedAt);
   const active = () => state.conversations.find((c) => c.id === state.activeId) || null;
 
-  function create(title = '新对话', persona = null) {
+  function create(title = '新对话') {
     const now = Date.now();
-    const conv = { id: uid(), title, createdAt: now, updatedAt: now, messages: [], persona: persona || null };
+    const conv = { id: uid(), title, createdAt: now, updatedAt: now, messages: [] };
     state.conversations.unshift(conv);
     state.activeId = conv.id;
     emit();
     return conv;
-  }
-
-  /** 设置（或更换）某个会话的女友人设；会话标题同步成她的名字。 */
-  function setPersona(id, persona) {
-    const conv = state.conversations.find((c) => c.id === id) || active();
-    if (!conv) return;
-    conv.persona = persona || null;
-    if (persona && persona.name) conv.title = persona.name;
-    conv.updatedAt = Date.now();
-    emit();
   }
 
   function remove(id) {
@@ -145,7 +134,7 @@ const Store = (() => {
     conversations: sorted,
     active,
     activeId: () => state.activeId,
-    create, remove, rename, select, setPersona,
+    create, remove, rename, select,
     addMessage, updateMessage, dropTrailing, clearActive, wipe, setSettings,
     isMemoryOnly: () => memoryOnly,
   };

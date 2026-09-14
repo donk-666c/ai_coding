@@ -16,10 +16,9 @@
   --text: #e8eaf2;
   --text-dim: #9aa0b4;
   --text-faint: #6b7186;
-  /* 强调色：选完性格后由 JS 覆盖成「她」的主题色，整个界面随之变化 */
-  --accent: #f472b6;
+  --accent: #6366f1;
   --accent-2: #a855f7;
-  --accent-grad: linear-gradient(135deg, #f472b6 0%, #a855f7 100%);
+  --accent-grad: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
   --danger: #f43f5e;
   --ok: #22c55e;
   --warn: #f59e0b;
@@ -55,15 +54,13 @@ html, body {
   position: absolute;
   display: block;
   border-radius: 50%;
-  filter: blur(110px);
-  opacity: 0.3;
+  filter: blur(90px);
+  opacity: 0.5;
   animation: drift 22s ease-in-out infinite alternate;
 }
-/* 光斑一律用「她的主题色混进底色」的深色版：
-   直接拿性格色当背景会亮得盖过正文（尤其锐利/黏人这种高饱和色） */
-.aurora span:nth-child(1) { width: 46vw; height: 46vw; left: -8vw; top: -12vw; background: color-mix(in srgb, var(--accent) 42%, #0a0b12); }
-.aurora span:nth-child(2) { width: 38vw; height: 38vw; right: -6vw; top: 8vh; background: color-mix(in srgb, var(--accent-2) 36%, #0a0b12); animation-delay: -7s; }
-.aurora span:nth-child(3) { width: 34vw; height: 34vw; left: 32vw; bottom: -16vw; background: color-mix(in srgb, var(--accent-2) 22%, #0a0b12); opacity: 0.22; animation-delay: -13s; }
+.aurora span:nth-child(1) { width: 46vw; height: 46vw; left: -8vw; top: -12vw; background: #4338ca; }
+.aurora span:nth-child(2) { width: 38vw; height: 38vw; right: -6vw; top: 8vh; background: #7e22ce; animation-delay: -7s; }
+.aurora span:nth-child(3) { width: 34vw; height: 34vw; left: 32vw; bottom: -16vw; background: #0e7490; opacity: 0.35; animation-delay: -13s; }
 @keyframes drift {
   from { transform: translate3d(0, 0, 0) scale(1); }
   to   { transform: translate3d(3vw, 4vh, 0) scale(1.14); }
@@ -139,8 +136,6 @@ html, body {
 .conv-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .conv-item.active { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.35); color: #fff; }
 .conv-icon { flex: none; opacity: 0.6; }
-/* 有人设时用她的 emoji 当图标，比通用图标更好认 */
-.conv-icon.conv-emoji { font-size: 13px; line-height: 1; opacity: 0.95; }
 .conv-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-del {
   flex: none; width: 22px; height: 22px;
@@ -582,179 +577,5 @@ input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer;
   .welcome h2 { font-size: 21px; }
   .suggestions { grid-template-columns: 1fr; }
   .to-bottom { bottom: 122px; right: 16px; }
-  .persona-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .persona-card { padding: 14px 12px; }
-  .persona-emoji { font-size: 30px; }
-  .setup-card { padding: 26px 20px; border-radius: 18px; }
-  .setup-card h2 { font-size: 20px; }
-  .name-input { font-size: 17px; }
-  .partner-avatar { width: 30px; height: 30px; font-size: 15px; }
-  #chatTitle { max-width: 34vw; }
 }
 
-/* ============================================================
-   女友主题新增部分
-   ============================================================ */
-
-/* ---------- 头部：她是谁 ---------- */
-.partner-avatar {
-  width: 36px; height: 36px; flex: none;
-  display: grid; place-items: center;
-  border-radius: 11px;
-  font-size: 19px; line-height: 1;
-  background: var(--accent-grad);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
-  transition: transform 0.2s ease;
-}
-.partner-avatar:hover { transform: scale(1.06) rotate(-4deg); }
-.partner-tags { display: flex; align-items: center; gap: 6px; }
-.badge.ghost {
-  border-color: var(--border); background: rgba(255, 255, 255, 0.05); color: var(--text-faint);
-}
-.brand-logo { font-size: 18px; }
-.btn-soft {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; margin-right: 4px;
-  border: 1px solid var(--border-strong); border-radius: 9px;
-  background: rgba(255, 255, 255, 0.05); color: var(--text-dim);
-  font-family: inherit; font-size: 12.6px; cursor: pointer;
-  transition: all 0.16s ease; white-space: nowrap;
-}
-.btn-soft:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); border-color: var(--accent); }
-
-/* 助手气泡用她的主题色描边，视觉上「是她在说话」 */
-.msg.assistant .avatar { background: var(--accent-grad); font-size: 16px; }
-.msg.assistant .bubble { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
-.msg.user .bubble { background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.05)); }
-
-/* ---------- 人设向导 ---------- */
-.setup {
-  position: fixed; inset: 0; z-index: 50;
-  display: grid; place-items: center;
-  padding: 24px;
-  background: rgba(6, 7, 12, 0.82);
-  backdrop-filter: blur(14px);
-  animation: fade-in 0.28s ease both;
-}
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-
-.setup-glow {
-  position: absolute; width: 70vw; height: 70vw; max-width: 900px; max-height: 900px;
-  border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, var(--accent) 0%, transparent 62%);
-  opacity: 0.16; filter: blur(70px);
-  animation: breathe 7s ease-in-out infinite alternate;
-}
-@keyframes breathe { from { transform: scale(0.92); opacity: 0.12; } to { transform: scale(1.08); opacity: 0.22; } }
-
-.setup-card {
-  position: relative;
-  width: 100%; max-width: 620px;
-  padding: 32px 30px 28px;
-  border: 1px solid var(--border-strong); border-radius: 22px;
-  background: rgba(18, 20, 32, 0.94);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-  animation: rise 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-.setup-card h2 { margin: 0 0 7px; font-size: 23px; font-weight: 650; letter-spacing: 0.3px; text-align: center; }
-.setup-sub { margin: 0 0 22px; text-align: center; font-size: 13.4px; color: var(--text-faint); }
-
-.setup-steps { display: flex; justify-content: center; gap: 7px; margin-bottom: 22px; }
-.setup-steps i {
-  width: 22px; height: 4px; border-radius: 99px;
-  background: rgba(255, 255, 255, 0.13); transition: all 0.3s ease;
-}
-.setup-steps i.on { width: 34px; background: var(--accent-grad); }
-
-/* 性格卡片 */
-.persona-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; }
-.persona-card {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 18px 12px 15px;
-  border: 1px solid var(--border); border-radius: 15px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text); font-family: inherit; cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
-  animation: rise 0.4s ease both;
-}
-.persona-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--card-color);
-  background: color-mix(in srgb, var(--card-color) 14%, transparent);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
-}
-.persona-card.on {
-  border-color: var(--card-color);
-  background: color-mix(in srgb, var(--card-color) 20%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-color) 45%, transparent), 0 14px 34px rgba(0, 0, 0, 0.4);
-}
-.persona-card.on::after {
-  content: '✓';
-  position: absolute; top: 8px; right: 9px;
-  width: 17px; height: 17px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--card-color); color: #0a0b12;
-  font-size: 11px; font-weight: 800;
-}
-.persona-emoji { font-size: 34px; line-height: 1.1; }
-.persona-name { font-size: 14.6px; font-weight: 600; }
-.persona-tagline { font-size: 11.6px; color: var(--text-faint); line-height: 1.45; text-align: center; }
-
-/* 已选中的她 */
-.picked {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  margin-bottom: 20px; padding: 13px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: 15px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.picked-emoji { font-size: 30px; line-height: 1; }
-.picked-text { display: flex; flex-direction: column; line-height: 1.35; }
-.picked-text b { font-size: 15.5px; }
-.picked-text small { font-size: 12px; color: var(--text-dim); }
-
-.name-input {
-  width: 100%; padding: 14px 16px;
-  border: 1px solid var(--border-strong); border-radius: 13px;
-  background: rgba(255, 255, 255, 0.05); color: var(--text);
-  font-family: inherit; font-size: 18px; text-align: center; letter-spacing: 1px;
-  outline: none; transition: all 0.18s ease;
-}
-.name-input::placeholder { color: var(--text-faint); letter-spacing: 0; font-size: 15px; }
-.name-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
-
-.name-suggest { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin: 13px 0 4px; }
-.name-chip {
-  padding: 6px 13px; border: 1px solid var(--border); border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04); color: var(--text-dim);
-  font-family: inherit; font-size: 12.8px; cursor: pointer; transition: all 0.16s ease;
-}
-.name-chip:hover { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-
-.setup-actions { display: flex; gap: 10px; margin-top: 22px; }
-.setup-actions .btn-ghost { flex: none; }
-.btn-primary {
-  flex: 1;
-  padding: 13px 18px;
-  border: 0; border-radius: 12px;
-  background: var(--accent-grad); color: #fff;
-  font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
-  box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 40%, transparent);
-  transition: all 0.18s ease;
-}
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 14px 32px color-mix(in srgb, var(--accent) 55%, transparent); }
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-
-/* 设置抽屉里的「当前女友」 */
-.current-partner {
-  display: flex; align-items: center; gap: 11px;
-  padding: 11px 13px;
-  border: 1px solid var(--border); border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-}
-.cp-emoji { font-size: 22px; line-height: 1; }
-.cp-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
-.cp-text b { font-size: 14px; }
-.cp-text small { font-size: 11.8px; color: var(--text-faint); }
-.btn-ghost.small { padding: 6px 11px; font-size: 12.4px; }

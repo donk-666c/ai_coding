@@ -14,28 +14,16 @@
     maxTokens: $('maxTokens'), thinkingToggle: $('thinkingToggle'),
     probeBtn: $('probeBtn'), probeResult: $('probeResult'),
     endpointHint: $('endpointHint'), wipeBtn: $('wipeBtn'), toasts: $('toasts'),
-    // —— 女友主题 ——
-    setup: $('setup'), setupSteps: $('setupSteps'), personaGrid: $('personaGrid'),
-    pickedPreview: $('pickedPreview'), partnerName: $('partnerName'), nameSuggest: $('nameSuggest'),
-    setupBack: $('setupBack'), setupDone: $('setupDone'),
-    partnerAvatar: $('partnerAvatar'), personaBadge: $('personaBadge'),
-    editPersonaBtn: $('editPersonaBtn'), brandLogo: $('brandLogo'), brandSub: $('brandSub'),
-    currentPartner: $('currentPartner'), changePersonaBtn: $('changePersonaBtn'),
   };
 
-  // 清空记录后展示的破冰话题（女友场景，不再是技术问题）
   const SUGGESTIONS = [
-    ['今天过得怎么样', '跟她说说你今天遇到的事'],
-    ['夸她一句', '看不同性格会怎么反应'],
-    ['让她猜猜', '让她猜你现在在想什么'],
-    ['讲个笑话', '让她逗你开心一下'],
+    ['解释一段代码', '把这段代码讲清楚，并指出潜在问题'],
+    ['写一个函数', '用 Python 写一个带重试和退避的 HTTP 请求函数'],
+    ['比较技术方案', '对比 Flask 和 FastAPI，给出选型建议表格'],
+    ['排查报错', '帮我分析这个报错的原因和修复方向'],
   ];
 
   let config = null;
-  let personas = [];        // 后端下发的人格清单
-  let draftPersona = null;  // 向导里当前选中的性格
-  let setupMode = 'new';    // new = 新建一个她；edit = 改当前会话的她
-  let setupStep = 1;
   let streaming = false;
   let controller = null;
   let liveBubble = null;
@@ -78,149 +66,6 @@
     els.toBottom.hidden = nearBottom();
   }
 
-  /* ---------------- 女友人设 ---------------- */
-  const personaDef = (id) => personas.find((p) => p.id === id) || null;
-
-  /** 把「她」的主题色应用到整站；背景极光由 CSS 从这个色混出深色版 */
-  function applyPersonaTheme(def) {
-    if (!def) return;
-    const root = document.documentElement.style;
-    root.setProperty('--accent', def.color);
-    root.setProperty('--accent-2', def.accent);
-    root.setProperty('--accent-grad', `linear-gradient(135deg, ${def.color} 0%, ${def.accent} 100%)`);
-  }
-
-  /** 当前会话的「她」的性格定义（没有则 null） */
-  function activeDef() {
-    const conv = Store.active();
-    return conv?.persona ? personaDef(conv.persona.id) : null;
-  }
-
-  /** 刷新所有「她是谁」的地方：头部头像、侧边栏品牌、设置抽屉、输入框提示 */
-  function refreshPartnerChrome() {
-    const conv = Store.active();
-    const p = conv?.persona || null;
-    const def = p ? personaDef(p.id) : null;
-
-    els.partnerAvatar.textContent = def?.emoji || '💕';
-    els.brandLogo.textContent = def?.emoji || '💕';
-    els.brandSub.textContent = p ? `${p.name}${def ? ' · ' + def.name : ''}` : '智谱 GLM';
-    els.personaBadge.textContent = def ? def.name : (p ? '自定义' : '未设定');
-    els.input.placeholder = p ? `对${p.name}说点什么…（Enter 发送）` : '说点什么…（Enter 发送）';
-
-    if (els.currentPartner) {
-      els.currentPartner.querySelector('.cp-emoji').textContent = def?.emoji || '💕';
-      els.currentPartner.querySelector('b').textContent = p?.name || '未设定';
-      els.currentPartner.querySelector('small').textContent = def
-        ? `${def.name} · ${def.tagline}`
-        : '还没选，点「更换」挑一个';
-    }
-    if (def) applyPersonaTheme(def);
-    return def;
-  }
-
-  /* ---------------- 人设向导 ---------------- */
-  function openSetup(mode) {
-    if (!personas.length) {
-      toast('没有拿到人格清单，无法设置女友', 'error');
-      return;
-    }
-    setupMode = mode;
-    const conv = Store.active();
-    draftPersona = mode === 'edit' && conv?.persona ? personaDef(conv.persona.id) || personas[0] : null;
-    els.partnerName.value = mode === 'edit' && conv?.persona ? conv.persona.name : '';
-    els.setup.hidden = false;
-    renderPersonaGrid();
-    gotoStep(1);
-  }
-
-  function closeSetup() {
-    els.setup.hidden = true;
-  }
-
-  function gotoStep(n) {
-    setupStep = n;
-    els.setup.querySelectorAll('.setup-step').forEach((s) => {
-      s.hidden = Number(s.dataset.step) !== n;
-    });
-    els.setupSteps.querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i < n));
-    if (n === 2) {
-      renderPicked();
-      renderNameSuggest();
-      if (!els.partnerName.value) els.partnerName.value = draftPersona?.defaultName || '';
-      els.partnerName.select();
-    }
-  }
-
-  function renderPersonaGrid() {
-    els.personaGrid.innerHTML = '';
-    personas.forEach((p, i) => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = `persona-card${draftPersona?.id === p.id ? ' on' : ''}`;
-      card.style.setProperty('--card-color', p.color);
-      card.style.animationDelay = `${i * 45}ms`;
-      card.innerHTML = `<span class="persona-emoji"></span><span class="persona-name"></span><span class="persona-tagline"></span>`;
-      card.querySelector('.persona-emoji').textContent = p.emoji;
-      card.querySelector('.persona-name').textContent = p.name;
-      card.querySelector('.persona-tagline').textContent = p.tagline;
-      card.addEventListener('click', () => {
-        draftPersona = p;
-        applyPersonaTheme(p); // 点一下就先预览她的配色
-        renderPersonaGrid();
-        setTimeout(() => gotoStep(2), 170);
-      });
-      els.personaGrid.appendChild(card);
-    });
-  }
-
-  function renderPicked() {
-    if (!draftPersona) return;
-    els.pickedPreview.querySelector('.picked-emoji').textContent = draftPersona.emoji;
-    els.pickedPreview.querySelector('b').textContent = draftPersona.name;
-    els.pickedPreview.querySelector('small').textContent = draftPersona.tagline;
-  }
-
-  function renderNameSuggest() {
-    if (!draftPersona) return;
-    els.nameSuggest.innerHTML = '';
-    for (const name of (draftPersona.names || []).slice(0, 5)) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'name-chip';
-      chip.textContent = name;
-      chip.addEventListener('click', () => {
-        els.partnerName.value = name;
-        els.partnerName.focus();
-      });
-      els.nameSuggest.appendChild(chip);
-    }
-  }
-
-  function finishSetup() {
-    if (!draftPersona) return;
-    const name = (els.partnerName.value || '').trim() || draftPersona.defaultName;
-    const persona = { id: draftPersona.id, name };
-
-    if (setupMode === 'edit' && Store.active()) {
-      Store.setPersona(Store.activeId(), persona);
-      toast(`已把当前会话换成${draftPersona.emoji}${draftPersona.name}性格的${name}`, 'ok');
-    } else {
-      Store.create(name, persona);
-      // 她的第一句话由前端直接落库：不烧模型调用，也给了模型「我说过什么」的锚
-      const greeting = String(draftPersona.greeting || '').replaceAll('{name}', name);
-      if (greeting) Store.addMessage('assistant', greeting, { greeting: true });
-    }
-
-    applyPersonaTheme(draftPersona);
-    closeSetup();
-    refreshPartnerChrome();
-    renderSidebar();
-    renderMessages();
-    scrollToBottom(true);
-    els.input.focus();
-  }
-
   /* ---------------- 渲染：侧边栏 ---------------- */
   function renderSidebar() {
     const list = Store.conversations();
@@ -228,20 +73,15 @@
     if (!list.length) {
       const empty = document.createElement('div');
       empty.className = 'conv-empty';
-      empty.textContent = '还没有她。点上面「认识新的她」开始。';
+      empty.textContent = '还没有对话，点上面「新建对话」开始。';
       els.convList.appendChild(empty);
       return;
     }
     for (const conv of list) {
       const item = document.createElement('div');
       item.className = `conv-item${conv.id === Store.activeId() ? ' active' : ''}`;
-      const def = conv.persona ? personaDef(conv.persona.id) : null;
-      // 有女友就用她的 emoji 当图标，一眼认出在跟谁聊
-      const icon = def
-        ? `<span class="conv-icon conv-emoji">${def.emoji}</span>`
-        : `<svg class="conv-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12z"/></svg>`;
       item.innerHTML =
-        icon +
+        `<svg class="conv-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12z"/></svg>` +
         `<span class="conv-title"></span>` +
         `<button class="conv-del" title="删除会话"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
       item.querySelector('.conv-title').textContent = conv.title;
@@ -259,15 +99,12 @@
 
   /* ---------------- 渲染：消息区 ---------------- */
   function welcomeEl() {
-    const conv = Store.active();
-    const p = conv?.persona;
-    const def = p ? personaDef(p.id) : null;
     const box = document.createElement('div');
     box.className = 'welcome';
     box.innerHTML =
-      `<div class="welcome-logo">${def ? def.emoji : 'AI'}</div>` +
-      `<h2>${p ? `想和${Markdown.escapeHtml(p.name)}聊点什么？` : '今天想聊点什么？'}</h2>` +
-      `<p>${def ? `${def.name}性格 · ` : ''}由智谱 ${Markdown.escapeHtml(config?.primaryModel || 'GLM')} 驱动</p>` +
+      `<div class="welcome-logo">AI</div>` +
+      `<h2>今天想聊点什么？</h2>` +
+      `<p>由智谱 ${Markdown.escapeHtml(config?.primaryModel || 'GLM')} 驱动 · 支持流式输出与 Markdown 渲染</p>` +
       `<div class="suggestions"></div>`;
     const grid = box.querySelector('.suggestions');
     for (const [title, desc] of SUGGESTIONS) {
@@ -313,12 +150,7 @@
 
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
-    if (msg.role === 'user') {
-      avatar.textContent = '我';
-    } else {
-      // 女友模式下头像用她的 emoji，而不是冷冰冰的「AI」两个字
-      avatar.textContent = activeDef()?.emoji || '💕';
-    }
+    avatar.textContent = msg.role === 'user' ? '我' : 'AI';
 
     const wrap = document.createElement('div');
     wrap.className = 'bubble-wrap';
@@ -369,7 +201,6 @@
     const conv = Store.active();
     els.messages.innerHTML = '';
     els.chatTitle.textContent = conv ? conv.title : '新对话';
-    refreshPartnerChrome();
     if (!conv || !conv.messages.length) {
       els.messages.appendChild(welcomeEl());
       els.tokenInfo.textContent = '';
@@ -439,8 +270,6 @@
       maxTokens: s.maxTokens,
       system: s.systemPrompt || undefined,
       thinking: s.thinking ? 'enabled' : 'disabled',
-      // 人设交给后端按 id 组装，前端只报「她是谁」
-      persona: conv.persona ? { id: conv.persona.id, name: conv.persona.name } : undefined,
     };
   }
 
@@ -584,11 +413,10 @@
     if (controller) controller.abort();
   }
 
-  /** 首条消息后异步起个标题（走 axios 的非流式接口）；女友模式不用，标题就是她的名字 */
+  /** 首条消息后异步起个标题（走 axios 的非流式接口） */
   async function reactivateTitle(firstText) {
     const conv = Store.active();
-    if (!conv || conv.persona) return;
-    if (conv.title !== '新对话') return;
+    if (!conv || conv.title !== '新对话') return;
     if (conv.messages.filter((m) => m.role === 'user').length !== 1) return;
     try {
       const title = await API.makeTitle(firstText);
@@ -659,35 +487,16 @@
 
   /* ---------------- 绑定 ---------------- */
   function bind() {
-    els.newChatBtn.addEventListener('click', () => {
-      closeMobileNav();
-      // 有人格清单就先去挑一个她；后端没给清单时退回通用新建
-      if (personas.length) openSetup('new');
-      else { Store.create(); els.input.focus(); }
-    });
+    els.newChatBtn.addEventListener('click', () => { Store.create(); closeMobileNav(); els.input.focus(); });
     els.sendBtn.addEventListener('click', send);
     els.stopBtn.addEventListener('click', stop);
-
-    // —— 人设向导 ——
-    els.setupBack.addEventListener('click', () => gotoStep(1));
-    els.setupDone.addEventListener('click', finishSetup);
-    els.partnerName.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); finishSetup(); }
-    });
-    const changePersona = () => openSetup('edit');
-    els.editPersonaBtn.addEventListener('click', changePersona);
-    els.changePersonaBtn.addEventListener('click', () => {
-      els.settingsDrawer.classList.remove('open');
-      changePersona();
-    });
-
     els.clearBtn.addEventListener('click', () => {
       if (!Store.active()?.messages.length) return;
-      if (confirm('清空和她的聊天记录？')) Store.clearActive();
+      if (confirm('清空当前对话的全部消息？')) Store.clearActive();
     });
     els.exportBtn.addEventListener('click', exportMarkdown);
     els.wipeBtn.addEventListener('click', () => {
-      if (confirm('删除全部会话（所有她）？该操作不可撤销。')) { Store.wipe(); toast('已清空全部会话', 'ok'); }
+      if (confirm('删除全部会话？该操作不可撤销。')) { Store.wipe(); toast('已清空全部会话', 'ok'); }
     });
 
     els.input.addEventListener('input', autoGrow);
@@ -831,40 +640,11 @@
       toast(`读取配置失败：${API.describeError(err)}`, 'error');
     }
 
-    // 拉女友人格清单（后端是唯一来源）
-    try {
-      const data = await API.getPersonas();
-      personas = data.personas || [];
-    } catch (err) {
-      personas = [];
-      console.warn('读取女友人格失败：', API.describeError(err));
-    }
+    if (!Store.active() && Store.conversations().length === 0) Store.create();
+    else if (!Store.active()) Store.select(Store.conversations()[0].id);
 
     renderSidebar();
     renderMessages();
-
-    // 决定：先进「挑选一个她」，还是直接开聊
-    if (!personas.length) {
-      // 降级：后端没给出人格清单时，按普通助手用，别把用户卡在空向导里
-      if (!Store.conversations().length) Store.create();
-      else if (!Store.active()) Store.select(Store.conversations()[0].id);
-      renderSidebar();
-      renderMessages();
-      els.input.focus();
-      return;
-    }
-
-    if (!Store.conversations().length) {
-      // 全新用户：先选性格、再起名字
-      openSetup('new');
-      return;
-    }
-
-    if (!Store.active()) Store.select(Store.conversations()[0].id);
-    renderMessages();
-
-    // 老会话（本次改造前建的）还没有「她」，先让用户补上设定
-    if (!Store.active()?.persona) openSetup('edit');
     els.input.focus();
   }
 

@@ -24,11 +24,6 @@ const API = (() => {
     return data;
   }
 
-  /** 女友人格清单（性格、配色、默认名字、开场白）。 */
-  async function getPersonas() {
-    const { data } = await http.get('/api/personas');
-    return data;
-  }
 
   async function health(probe = false) {
     const { data } = await http.get('/api/health', { params: probe ? { probe: 1 } : {} });
@@ -130,5 +125,5 @@ const API = (() => {
     }
   }
 
-  return { getConfig, getPersonas, health, makeTitle, streamChat, describeError };
+  return { getConfig, health, makeTitle, streamChat, describeError };
 })();

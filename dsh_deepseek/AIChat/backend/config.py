@@ -107,9 +107,6 @@ RETRY_BACKOFF: float = float(_env("RETRY_BACKOFF", "1.5"))
 DEFAULT_TEMPERATURE: float = float(_env("DEFAULT_TEMPERATURE", "0.7"))
 DEFAULT_MAX_TOKENS: int = int(_env("DEFAULT_MAX_TOKENS", "4096"))
 
-# 女友人格模式的默认值：温度更高才有「人味」，回复短一点更像聊天（也更快更省）
-DEFAULT_TEMPERATURE_PERSONA: float = float(_env("DEFAULT_TEMPERATURE_PERSONA", "0.9"))
-DEFAULT_MAX_TOKENS_PERSONA: int = int(_env("DEFAULT_MAX_TOKENS_PERSONA", "1024"))
 DEFAULT_SYSTEM_PROMPT: str = _env(
     "SYSTEM_PROMPT",
     "你是一个专业、友好的中文 AI 助手。回答准确、条理清晰；涉及代码时使用 Markdown 代码块并标注语言。",
@@ -167,10 +164,6 @@ def public_config() -> dict:
         "defaultMaxTokens": DEFAULT_MAX_TOKENS,
         "defaultSystemPrompt": DEFAULT_SYSTEM_PROMPT,
         "defaultThinking": THINKING_MODE,
-        "personaDefaults": {
-            "temperature": DEFAULT_TEMPERATURE_PERSONA,
-            "maxTokens": DEFAULT_MAX_TOKENS_PERSONA,
-        },
         "hasApiKey": bool(API_KEY),
         "endpoint": f"{BASE_URL}{CHAT_PATH}",
     }

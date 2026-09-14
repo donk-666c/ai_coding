@@ -1,50 +1,8 @@
-# AI 女友 · 智谱 GLM 对话机器人
+# AIChat · 智谱 GLM 对话机器人
 
-一个能选性格、能起名字的 AI 女友聊天机器人：前端原生 HTML/CSS/JS + axios，
-后端 Python/Flask，对接智谱 GLM 大模型（默认 `GLM-4.7-Flash`，免费）。
-支持真流式输出、六种性格人设、随性格变化的主题配色、多会话管理、思维链展示。
-
-## 它是怎么「扮演」的
-
-打开页面先做两件事，然后才进聊天：
-
-1. **选一个她**：六种性格任选 —— `🌙 温柔`、`🔥 傲娇`、`🗡️ 犀利`、`🌸 害羞`、`🍬 黏人`、`❄️ 高冷`。
-   每张卡片带一句性格速写，点一下整站配色立刻变成她的主题色。
-2. **给她起名字**：可以自己写，也可以点系统给的建议名。名字会进入她的人设里。
-
-选完就进入聊天，并且**她会主动先说第一句**（开场白按性格和名字生成，不消耗模型调用）。
-
-人设的实现要点：
-
-- **性格提示词放在后端** `backend/personas.py`，前端只上报「是谁」（`{id, name}`）。
-  这样人设只有一处定义，也避免被前端改坏。每种性格都写了具体的说话习惯、标点风格、
-  口癖和情绪反应模式——差异是「演」出来的，不是靠一句「你要傲娇一点」。
-- 所有性格共享一份底层规则（`BASE_RULES`）：不许自称 AI/助手/模型、不许说教或分点罗列、
-  每次回复 1~3 句、要有情绪并主动关心、不写露骨内容、不承诺现实里做不到的事。
-- 设置里的「额外要求」会**追加**在性格设定之后（比如「多问我工作的事」），不会覆盖人设。
-- 每次回复都很短（默认 `maxTokens=1024`、`temperature=0.9`），像发微信而不是写文章。
-
-### 想加一种性格 / 改语气？
-
-只改 `backend/personas.py` 里的 `PERSONAS` 列表，加一项即可，前端会自动出现在选择页：
-
-```python
-{
-    "id": "yandere",                 # kebab-case，前端用它标识
-    "name": "病娇",
-    "emoji": "🩸",
-    "tagline": "只能看着我一个人哦",
-    "color": "#e11d48",              # 主色（按钮/头像/极光都跟它走）
-    "accent": "#7c3aed",             # 渐变副色
-    "defaultName": "绫",
-    "names": ["绫", "雪村", "小夜"],   # 起名字页的建议名
-    "greeting": "……你终于来了，{name}等了好久好久呢。",   # {name} 会替换成她的名字
-    "prompt": "你是病娇型的女孩。语气轻柔但执念很强……",     # 这一项决定她怎么说话
-}
-```
-
-改完重启后端即可（前端无需改动）。`tests/test_persona.mjs` 会把六种性格都问一遍，
-并断言「没有自称 AI」「名字被注入」「六种回复各不相同」——加新性格后跑一遍就知道有没有演崩。
+一个前后端分离的聊天机器人：前端原生 HTML/CSS/JS + axios，后端 Python/Flask，
+对接智谱 GLM 大模型（默认 `GLM-4.7-Flash`，免费）。支持真流式输出、Markdown 与代码高亮、
+多会话管理、思维链展示。
 
 ## 快速开始
 
@@ -70,24 +28,21 @@ py backend/app.py
 AIChat/
 ├─ backend/
 │  ├─ app.py            Flask 路由 + 静态托管 + SSE 输出
-│  ├─ personas.py       女友人格预设：性格定义、提示词组装、开场白
 │  ├─ glm.py            智谱客户端：降级链、429 重试、SSE 解析、超时兜底
 │  ├─ config.py         .env 加载与配置（不依赖 python-dotenv）
 │  └─ requirements.txt  仅 flask + requests
 ├─ frontend/
-│  ├─ index.html        聊天界面 + 人设向导
-│  ├─ css/style.css     深色玻璃拟态主题，随性格换色，响应式
+│  ├─ index.html
+│  ├─ css/style.css     深色玻璃拟态主题，响应式
 │  ├─ js/
 │  │  ├─ api.js         网络层：常规接口走 axios，流式走 fetch
-│  │  ├─ store.js       localStorage 会话管理（含每个会话的人设）
+│  │  ├─ store.js       localStorage 会话管理
 │  │  ├─ markdown.js    marked + DOMPurify + highlight.js 渲染
 │  │  └─ app.js         UI 逻辑
 │  └─ vendor/           依赖全部本地化，无任何 CDN 依赖
 ├─ tests/
 │  ├─ test_api.mjs        后端端到端（流式、降级、校验、思维链、免费白名单）
-│  ├─ test_persona.mjs    人格验证（六种性格是否演得像、是否自称 AI、名字注入）
-│  ├─ test_ui.py          通用界面验证 + 截图
-│  ├─ test_ui_girlfriend.py  女友流程验证（向导 → 选性格 → 起名字 → 聊天 → 换人）
+│  ├─ test_ui.py          界面验证 + 截图
 │  ├─ test_timeout.py     "上游只连不答"时的限时兜底
 │  └─ check_models.mjs    模型可用性探针
 ├─ .env                 密钥与配置（已被 .gitignore 忽略）
@@ -132,20 +87,18 @@ GLM-4.7-Flash  ·  glm-4-flash-250414  ·  glm-4.5-flash  ·  glm-4-flash
 |---|---|---|---|
 | GET | `/` | — | 前端页面（与后端同源，无跨域） |
 | GET | `/api/config` | axios | 下发模型列表等公开配置，**不含 API Key** |
-| GET | `/api/personas` | axios | 女友人格清单（性格、配色、建议名字、开场白；**不含提示词**） |
 | GET | `/api/health` | axios | 健康检查；`?probe=1` 会真连一次上游 |
-| POST | `/api/chat` | fetch（流式） | SSE 流式对话；带 `persona: {id, name}` 时按人设组装 system prompt |
-| POST | `/api/title` | axios | 用模型给会话自动起标题（女友模式不用，标题就是她的名字） |
+| POST | `/api/chat` | fetch（流式） | SSE 流式对话 |
+| POST | `/api/title` | axios | 用模型给会话自动起标题 |
 
-`/api/chat` 的请求体（女友模式）：
+`/api/chat` 的请求体：
 
 ```jsonc
 {
-  "messages": [{"role": "user", "content": "今天好累"}],
-  "persona": {"id": "tsundere", "name": "阿凛"},   // 人设，由服务端组装成 system prompt
-  "system": "多问问我工作的事",                      // 可选：追加在性格设定之后
-  "temperature": 0.9,
-  "maxTokens": 1024
+  "messages": [{"role": "user", "content": "用 3 行 Python 演示快速排序"}],
+  "system": "你是一个专业、友好的中文 AI 助手",   // 可选：覆盖默认系统提示词
+  "temperature": 0.7,
+  "maxTokens": 4096
 }
 ```
 
@@ -209,9 +162,7 @@ API Key 只存在于后端 `.env`，浏览器完全拿不到，所有请求经�
 py backend/app.py &                # 先起服务
 
 node tests/test_api.mjs            # 后端端到端
-node tests/test_persona.mjs        # 人格是否演得像（会真调模型，六种性格各一次）
-py tests/test_ui.py                # 通用界面验证
-py tests/test_ui_girlfriend.py     # 女友完整流程（向导 → 聊天 → 换人 → 刷新）
+py tests/test_ui.py                # 界面验证 + 截图
 py tests/test_timeout.py           # 超时兜底（不需要起服务）
 node tests/check_models.mjs        # 探测模型可用性
 
