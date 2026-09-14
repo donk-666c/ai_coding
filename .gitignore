@@ -17,6 +17,16 @@ credentials.json
 .aws/
 .ssh/
 
+# 各类项目的环境变量文件（常含 API Key）。
+# 用 .env.* 覆盖 .env.local / .env.production / .env.development 等变体，
+# 再用 ! 把 .env.example 放回来 —— 那是空值模板，应该入库。
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
 # 资料
 ziliao/
 
