@@ -103,7 +103,9 @@ with sync_playwright() as p:
     check("她回复了", len(reply) > 4, reply[:70].replace("\n", " "))
     check("没有自称 AI/助手/模型", not re.search(r"(AI|人工智能|语言模型|助手|程序)", reply),
           reply[:70].replace("\n", " "))
-    check("回复是短的聊天口吻（< 200 字）", len(reply) < 200, f"{len(reply)} 字")
+    # 上面这句是「倾诉」场景，按新长度规则她应该说长一点（实测 ~240 字）。
+    # 这里只守住上限，防止退化成小作文；「有长有短」由 tests/test_length.mjs 专门验证。
+    check("倾诉时可以说长，但没写成小作文（< 500 字）", len(reply) < 500, f"{len(reply)} 字")
     page.screenshot(path=str(SHOTS / "gf-4-reply.png"))
 
     # ---------- 5. 换一个她 ----------
