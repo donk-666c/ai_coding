@@ -33,3 +33,6 @@ ziliao/
 # 打包产物。放这里是为了和 src-tauri/target 分开——那个目录清理磁盘时容易被整个端掉
 actual/gravity-flip-dist/
 actual/personal/
+
+# 该目录保留在本地，不再纳入版本管理（已从远程仓库移除）
+claude_deepseek/
