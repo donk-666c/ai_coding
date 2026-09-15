@@ -238,7 +238,7 @@ export class Overlay {
       src: './assets/sponsor-qr.jpg',
       alt: '微信收款码',
       frameClass: 'qr-frame',
-      placeholder: '收款码还没放进来<br /><code>public/assets/sponsor-qr.jpg</code>',
+      placeholder: '赞助方式待补充',
     });
   }
 
