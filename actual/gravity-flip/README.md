@@ -72,7 +72,7 @@ src-tauri/target/debug
 | 关卡 | `src/game/level/levels.ts`（ASCII 文本，记事本能改） |
 | 界面文字与流程 | `src/ui/overlay.ts` |
 | 应用图标 | 改 `scripts/make-icon.mjs` 后重跑它，再跑 `npx tauri icon src-tauri/icons/icon-source.png` |
-| 壁纸 / 收款码 | 覆盖 `public/assets/` 下的文件，**扩展名要跟实际内容一致** |
+| 壁纸 / 收款码 | 自行放入 `public/assets/`（这两个文件不在仓库里），**扩展名要跟实际内容一致** |
 
 ## 环境要求
 

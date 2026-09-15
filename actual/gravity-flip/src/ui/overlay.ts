@@ -91,7 +91,7 @@ function formatTime(ms: number): string {
 /**
  * 把图片挂进容器，加载失败就换成 .placeholder 提示。
  *
- * 收款码和壁纸是用户后补的素材，没放进来的时候必须给一句能看懂的话，
+ * 收款码、壁纸和赞助码是用户后续自备的素材（仓库里不带），没放进来的时候必须给一句能看懂的话，
  * 而不是让浏览器显示一个破图图标。
  */
 function mountImage(
@@ -284,7 +284,7 @@ export class Overlay {
       src: WALLPAPER_URL,
       alt: '通关壁纸',
       imgClass: 'wallpaper',
-      placeholder: '壁纸还没放进来<br /><code>public/assets/wallpaper.jpg</code>',
+      placeholder: '通关壁纸还没放进来',
     });
 
     // 图都没有就没有可存的东西，直接把按钮灰掉，而不是让玩家点了才发现保存失败
